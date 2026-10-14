@@ -69,6 +69,10 @@ export const HarnessConfigSchema = Type.Object({
 		sandboxImage: Type.String(),
 		sandboxNetwork: Type.String(),
 	}),
+	/** Long-term memory: notes in <agentDir>/<dir>; #pin notes are always in the prompt (capped). */
+	memory: Type.Object({ dir: Type.String(), pinnedChars: Type.Number() }),
+	/** JSONL traces of routing, model calls, tools and subagents in <agentDir>/<dir> (see /stats). */
+	telemetry: Type.Object({ enabled: Type.Boolean(), dir: Type.String() }),
 	/** Context discipline: what may enter a context window, and where everything else goes. */
 	context: Type.Object({
 		/** Full outputs (subagent reports, big tool results, panel answers) are written here, relative to cwd. */
@@ -103,6 +107,23 @@ export const HarnessConfigSchema = Type.Object({
 		maxCostUSD: Type.Number(),
 		callTimeoutMs: Type.Number(),
 		maxOutputTokens: Type.Object({ panelist: Type.Number(), orchestrator: Type.Number() }),
+		reportDir: Type.String(),
+	}),
+	/** Literature-review pipeline (see src/science). */
+	science: Type.Object({
+		orchestrator: Type.Array(Type.String()),
+		/** Two available screeners are used, preferably from different providers. */
+		screeners: Type.Array(Type.String()),
+		extractor: Type.Array(Type.String()),
+		verifier: Type.Array(Type.String()),
+		sources: Type.Array(Type.Union([Type.Literal("openalex"), Type.Literal("semanticscholar"), Type.Literal("pubmed"), Type.Literal("arxiv")])),
+		maxDirectionQuestions: Type.Number(),
+		maxQueries: Type.Number(),
+		perQuery: Type.Number(),
+		maxCandidates: Type.Number(),
+		maxIncluded: Type.Number(),
+		askUser: Type.Boolean(),
+		maxCostUSD: Type.Number(),
 		reportDir: Type.String(),
 	}),
 });

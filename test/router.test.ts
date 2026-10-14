@@ -56,3 +56,15 @@ describe("per-route loading", () => {
 		expect(routeAgents(config, undefined, agents).size).toBe(3);
 	});
 });
+
+describe("handoff targets", () => {
+	it("parses modes, models and external agents", async () => {
+		const { parseHandoff } = await import("../src/core/handoff.ts");
+		const routes = Object.keys(config.routes);
+		expect(parseHandoff("continue with tests", routes)).toEqual({ target: { kind: "same" }, goal: "continue with tests" });
+		expect(parseHandoff("--to code implement step 1", routes)).toEqual({ target: { kind: "route", route: "code" }, goal: "implement step 1" });
+		expect(parseHandoff("--to lmstudio/qwen/qwen3.5-9b go", routes)).toEqual({ target: { kind: "model", model: "lmstudio/qwen/qwen3.5-9b" }, goal: "go" });
+		expect(parseHandoff("--to claude finish it", routes)).toEqual({ target: { kind: "external", agent: "claude" }, goal: "finish it" });
+		expect(() => parseHandoff("--to nowhere x", routes)).toThrow(/Unknown handoff target/);
+	});
+});

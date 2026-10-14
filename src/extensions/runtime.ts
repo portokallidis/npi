@@ -30,6 +30,7 @@ export function createRuntime(ctx: ExtensionContext): HarnessRuntime {
 		fallbackModels: () => config.routes[config.router.defaultRoute]?.models ?? [],
 		artifacts,
 		mcpCatalogue: config.mcpServers,
+		guard: config.guard,
 		contextTokens: config.context.subagentContextTokens,
 		summaryTokens: config.context.subagentSummaryTokens,
 		timeoutMs: config.subagents.timeoutMs,

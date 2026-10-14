@@ -18,6 +18,11 @@ const AGENT_DIR = process.env.HARNESS_AGENT_DIR || join(homedir(), ".harness", "
 const WEB_ACCESS_PACKAGE = "npm:pi-web-access@0.40.0";
 const SEEDED_FILES = ["harness.json", "models.json", "mcp.json"];
 
+// .env files (see .env.example): repo root, then the agent dir. Real env vars always win.
+for (const file of [join(HARNESS_ROOT, ".env"), join(AGENT_DIR, ".env")]) {
+	if (existsSync(file)) process.loadEnvFile(file);
+}
+
 function piCliPath() {
 	const index = fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"));
 	return join(dirname(index), "bundle", "cli.js");
@@ -81,14 +86,17 @@ async function probe(url) {
 async function doctor() {
 	const keys = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY"];
 	for (const key of keys) console.log(`${key.padEnd(20)} ${process.env[key] ? "set" : "missing (or use /login)"}`);
+	const strip = (u) => u.replace(/\/+$/, "");
 	const endpoints = {
-		ollama: "http://localhost:11434/v1/models",
-		lmstudio: "http://localhost:1234/v1/models",
-		llamacpp: "http://localhost:8080/v1/models",
+		...(process.env.LLAMA_BASE_URL && { "llama.cpp": `${strip(process.env.LLAMA_BASE_URL)}/models` }),
+		...(process.env.LMSTUDIO_BASE_URL && { lmstudio: `${strip(process.env.LMSTUDIO_BASE_URL)}/models` }),
+		...(process.env.OLLAMA_BASE_URL && { ollama: `${strip(process.env.OLLAMA_BASE_URL)}/models` }),
+		...(process.env.VLLM_BASE_URL && { vllm: `${strip(process.env.VLLM_BASE_URL)}/models` }),
 		"playwright-mcp": "http://localhost:8931/mcp",
 		searxng: "http://localhost:8888/",
 	};
 	for (const [name, url] of Object.entries(endpoints)) console.log(`${name.padEnd(20)} ${await probe(url)}  ${url}`);
+	for (const alias of ["HARNESS_LOCAL_LARGE", "HARNESS_LOCAL_SMALL"]) console.log(`${alias.padEnd(20)} ${process.env[alias] || "unset"}`);
 	console.log(`agent dir            ${existsSync(AGENT_DIR) ? AGENT_DIR : "not initialised (run: harness init)"}`);
 }
 

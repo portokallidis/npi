@@ -65,6 +65,7 @@ export default function router(pi: ExtensionAPI) {
 
 		const route = rt.config.routes[current.route];
 		pi.events.emit(ROUTE_CHANNEL, current.route);
+		pi.events.emit("harness:telemetry", { type: "route", route: current.route, reason: current.reason, confidence: current.confidence });
 
 		// Lazy MCP: connect this route's servers the first time it is used.
 		for (const name of route.mcp ?? []) {

@@ -52,12 +52,20 @@ export default function subagents(pi: ExtensionAPI) {
 				runner: rt.runner,
 				maxConcurrency: rt.config.subagents.maxConcurrency,
 				maxParallelTasks: rt.config.subagents.maxParallelTasks,
+				// Subagents inherit the calling mode's policy (and sandbox).
+				policy: {
+					level: (route && rt.config.routes[route]?.policy) || rt.config.guard.defaultPolicy,
+					sandboxed: !!(route && rt.config.routes[route]?.sandbox),
+				},
 				signal,
 				onProgress(line) {
 					progress.push(line);
 					onUpdate?.({ content: [{ type: "text", text: progress.slice(-6).join("\n") }], details: { results: [] } });
 				},
 			});
+			for (const r of results) {
+				pi.events.emit("harness:telemetry", { type: "subagent", agent: r.agent, model: r.model, turns: r.usage.turns, costUSD: r.usage.costUSD, peakContextTokens: r.usage.peakContextTokens, error: r.error });
+			}
 			const cost = results.reduce((sum, r) => sum + r.usage.costUSD, 0);
 			const input = results.reduce((sum, r) => sum + r.usage.input, 0);
 			const output = results.reduce((sum, r) => sum + r.usage.output, 0);
@@ -83,6 +91,22 @@ export default function subagents(pi: ExtensionAPI) {
 			const agents = [...runtime.get(ctx).agents().values()];
 			const lines = agents.map((a) => `${a.name} — ${a.description}\n    model: ${a.models?.join(" > ") ?? "default"}  tools: ${a.tools?.join(", ") ?? "default"}${a.mcp ? `  mcp: ${a.mcp.join(", ")}` : ""}`);
 			ctx.ui.notify(lines.join("\n") || "No agents found", "info");
+		},
+	});
+
+	pi.registerCommand("review", {
+		description: "Review changes with the read-only reviewer agent: /review [git range or branch] (default: uncommitted changes)",
+		handler: async (args, ctx) => {
+			const rt = runtime.get(ctx);
+			const reviewer = rt.agents().get("reviewer");
+			if (!reviewer) return ctx.ui.notify("No reviewer agent found", "error");
+			const target = args.trim() || "uncommitted changes (git diff HEAD, plus untracked files)";
+			ctx.ui.setWorkingMessage?.("Reviewing…");
+			const result = await rt.runner.run({ agent: reviewer, task: `Review: ${target}`, policy: { level: "readonly", sandboxed: false } });
+			ctx.ui.setWorkingMessage?.();
+			const text = formatResults([result]);
+			// Into the conversation, so the next turn can act on the findings.
+			pi.sendMessage({ customType: "harness-review", content: text, display: true, details: undefined });
 		},
 	});
 }

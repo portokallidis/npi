@@ -7,8 +7,16 @@ export interface ModelRef {
 	id: string;
 }
 
-/** "openrouter/z-ai/glm-5.3" -> { provider: "openrouter", id: "z-ai/glm-5.3" } */
+/**
+ * "openrouter/z-ai/glm-5.3" -> { provider: "openrouter", id: "z-ai/glm-5.3" }.
+ * "local/<name>" is an alias resolved from HARNESS_LOCAL_<NAME> (see .env.example), so shared configs can
+ * say "local/large" while each machine maps it to its own server, e.g. "llama.cpp/qwen3.8-27b".
+ */
 export function parseModelRef(ref: string): ModelRef {
+	if (ref.startsWith("local/")) {
+		const target = process.env[`HARNESS_LOCAL_${ref.slice(6).toUpperCase().replace(/[^A-Z0-9]/g, "_")}`];
+		if (target && !target.startsWith("local/")) return parseModelRef(target);
+	}
 	const slash = ref.indexOf("/");
 	if (slash <= 0 || slash === ref.length - 1) throw new Error(`Invalid model ref "${ref}" (expected provider/model-id)`);
 	return { provider: ref.slice(0, slash), id: ref.slice(slash + 1) };
@@ -44,7 +52,8 @@ export function assistantText(message: AssistantMessage): string {
 	return message.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n");
 }
 
-const LOCAL_HOST = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|host\.docker\.internal)(:\d+)?/i;
+/** Self-hosted servers (loopback or private LAN): probe them before use, since they may be switched off. */
+const LOCAL_HOST = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|host\.docker\.internal|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[\w-]+\.local)(:\d+)?/i;
 const PROBE_TTL_MS = 30_000;
 
 /** Llm backed by pi's ModelRegistry (auth, models.json providers, virtual-model safe). */

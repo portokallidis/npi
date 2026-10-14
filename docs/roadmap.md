@@ -16,6 +16,28 @@ Each use case is a **profile**, which is today's `route` in `harness.json` with 
 
 Rule: when a new use case needs a new capability, add it to that use case's profile and nowhere else.
 
+## Status (Oct 2026)
+
+**Done**
+- Per-mode loadout: `skills`, `mcp` (lazy) and `agents` per mode; MCP catalogue in `harness.json`.
+- Approval policies (`readonly` / `ask` / `auto`) and the Docker sandbox. Protected paths. Subagents inherit the policy.
+- `plan` mode, the `todo` tool, `/handoff` to a mode, a model or an external agent CLI.
+- File checkpoints and `/undo`; git-worktree isolation for `coder`; `/review` with a read-only reviewer.
+- Telemetry (JSONL) and `/stats`; router evals (offline keywords plus a live classifier).
+- Durable brainstorm and science runs (`--resume`).
+- Long-term memory (`remember`, `recall`, `#pin`).
+- Science mode: protocol, 4-database search, dual screening with κ, extraction with quote checks, GRADE, citation verification, BibTeX.
+- Local models configured from `.env` (llama.cpp, LM Studio, Ollama, vLLM, any OpenAI-compatible server) with automatic discovery; `local/large` and `local/small` aliases.
+- Code intelligence: Serena MCP in `code` mode (opt-in).
+
+**Next**
+- Guardrails against prompt injection in fetched pages and papers: a classifier pass on tool results in `browse`, `research` and `science`.
+- Science: full-text reading of open-access PDFs; contradiction search; a novelty check for idea generation.
+- Browser action caching (Stagehand-style) and a domain allowlist for `browse`.
+- A per-turn advisor model (oh-my-pi style), opt-in per mode.
+- An OpenTelemetry exporter for the JSONL traces; scheduled or background agents.
+- Launch-time `harness --profile <name>` for heavy, rarely used extension packages.
+
 ## Improvements without bloat
 
 1. **Profiles replace routes.** Same object, more fields (above). No new subsystem.
@@ -25,7 +47,7 @@ Rule: when a new use case needs a new capability, add it to that use case's prof
 5. **Cache the classifier per conversation.** The classifier already runs only when no pin, prefix or keyword matches. Next: skip it while the conversation stays on one topic, to keep latency and cost near zero.
 6. **One artifact index per session.** Write an `index.md` listing every artifact with a one-line description, so the model reads one small file instead of guessing paths.
 
-## Planned mode: scientific research (`science` profile)
+## Scientific research mode (`science`, implemented; original design)
 
 **Goal:** literature-grounded answers to research questions, where every claim is traced to papers and the strength of the evidence is graded.
 

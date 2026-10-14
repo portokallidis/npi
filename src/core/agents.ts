@@ -18,6 +18,8 @@ export interface AgentDef {
 	contextTokens?: number;
 	/** Cap on the summary returned to the caller (tokens); defaults to config.context.subagentSummaryTokens. */
 	summaryTokens?: number;
+	/** "worktree": run in a fresh git worktree + branch; changes are committed there for review/merge. */
+	isolation?: "worktree";
 	systemPrompt: string;
 	filePath: string;
 }
@@ -40,6 +42,7 @@ export function parseAgentDef(content: string, filePath: string): AgentDef | und
 		mcp: list(frontmatter.mcp),
 		contextTokens: typeof frontmatter.contextTokens === "number" ? frontmatter.contextTokens : undefined,
 		summaryTokens: typeof frontmatter.summaryTokens === "number" ? frontmatter.summaryTokens : undefined,
+		isolation: frontmatter.isolation === "worktree" ? "worktree" : undefined,
 		systemPrompt: body.trim(),
 		filePath,
 	};

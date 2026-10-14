@@ -1,6 +1,6 @@
 import type { AgentDef } from "./agents.ts";
 import { mapPool } from "./pool.ts";
-import type { SubagentResult, SubagentRunner } from "./subagent.ts";
+import type { SubagentRequest, SubagentResult, SubagentRunner } from "./subagent.ts";
 
 export interface DelegateTask {
 	agent: string;
@@ -23,6 +23,7 @@ export interface DelegateOptions {
 	maxParallelTasks: number;
 	signal?: AbortSignal;
 	onProgress?: (line: string) => void;
+	policy?: SubagentRequest["policy"];
 }
 
 export type DelegateMode = "single" | "parallel" | "chain";
@@ -57,6 +58,7 @@ export async function runDelegate(params: DelegateParams, options: DelegateOptio
 			model: t.model,
 			signal: options.signal,
 			onProgress: options.onProgress,
+			policy: options.policy,
 		});
 
 	if (mode === "single") {

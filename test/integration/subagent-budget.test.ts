@@ -1,6 +1,6 @@
 // Integration: a real in-process subagent that keeps working past its context budget is first steered
 // to wrap up, then stopped at 1.5x — and its summary still reaches the caller.
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai/compat";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
@@ -37,6 +37,7 @@ describe.skipIf(!agentDir || !existsSync(join(agentDir, "settings.json")))("suba
 			agentDir,
 			llm: { available: async () => true, complete: async () => Promise.reject(new Error("unused")) },
 			fallbackModels: () => [],
+			guard: JSON.parse(readFileSync(new URL("../../config/harness.json", import.meta.url), "utf8")).guard,
 			artifacts: new ArtifactStore(process.cwd(), ".harness/artifacts", "integration"),
 			contextTokens: 10_000, // after one ~5k-token read the context (~13.5k) is between 1x and 1.5x
 			summaryTokens: 100,

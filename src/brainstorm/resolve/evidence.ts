@@ -16,7 +16,12 @@ export async function resolveWithEvidence(dispute: Dispute, ctx: ResolveContext)
 		return judge(dispute, ctx, ["(No research agent available; ruling without external evidence.)"]);
 	}
 	ctx.budget.assertAvailable();
-	const result = await ctx.runner.run({ agent: ctx.evidenceAgent, task: evidenceTask(ctx.question, dispute), signal: ctx.signal });
+	const result = await ctx.runner.run({
+		agent: ctx.evidenceAgent,
+		task: evidenceTask(ctx.question, dispute),
+		signal: ctx.signal,
+		policy: { level: "readonly", sandboxed: false },
+	});
 	ctx.budget.add(`evidence:${ctx.evidenceAgent.name}`, result.model, {
 		input: result.usage.input,
 		output: result.usage.output,

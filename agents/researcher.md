@@ -1,7 +1,7 @@
 ---
 name: researcher
 description: Finds and verifies facts on the web; returns a sourced verdict. Uses search, page fetching, and a real browser when pages need JavaScript.
-model: anthropic/claude-sonnet-5-5, google/gemini-3.1-pro-preview, openai/gpt-5.6-terra, ollama/qwen3.6:27b
+model: anthropic/claude-sonnet-5-5, google/gemini-3.1-pro-preview, openai/gpt-5.6-terra, local/large
 thinking: medium
 tools: web_search, fetch_content, get_search_content
 mcp: playwright

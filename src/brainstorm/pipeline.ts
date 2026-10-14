@@ -3,6 +3,7 @@ import type { ArtifactStore } from "../core/artifacts.ts";
 import { Budget, BudgetExceededError } from "../core/budget.ts";
 import { firstAvailable, type Llm } from "../core/llm.ts";
 import { mapPool } from "../core/pool.ts";
+import type { RunState } from "../core/runstate.ts";
 import { callStructured } from "../core/structured.ts";
 import type { SubagentRunner } from "../core/subagent.ts";
 import { askDirections, frame } from "./frame.ts";
@@ -32,6 +33,8 @@ export interface BrainstormDeps {
 	onEvent?: (event: BrainstormEvent) => void;
 	/** Shared so callers can display live spend. */
 	budget?: Budget;
+	/** Checkpoint each finished stage; a resumed run skips them (no re-asking, no re-paying). */
+	state?: RunState;
 }
 
 /** Prefer a judge from a different model than any panelist, to avoid self-preference. */
@@ -58,6 +61,7 @@ export async function runBrainstorm(prompt: string, config: BrainstormConfig, de
 	const budget = deps.budget ?? new Budget(config.maxCostUSD);
 	const phase = (text: string) => onEvent?.({ type: "phase", text });
 	const orchestratorTokens = config.maxOutputTokens.orchestrator;
+	const step = <T>(name: string, run: () => Promise<T>): Promise<T> => (deps.state ? deps.state.step(name, run) : run());
 
 	const orchestrator = await firstAvailable(llm, config.orchestrator);
 	if (!orchestrator) throw new Error(`No orchestrator model available (tried ${config.orchestrator.join(", ")})`);
@@ -67,9 +71,11 @@ export async function runBrainstorm(prompt: string, config: BrainstormConfig, de
 	const user = config.askUser ? deps.user : undefined;
 
 	phase("Understanding the goal");
-	const framing = await frame(prompt, { llm, budget, model: orchestrator, maxQuestions: config.maxDirectionQuestions, maxTokens: orchestratorTokens, signal });
+	const framing = await step("frame", () =>
+		frame(prompt, { llm, budget, model: orchestrator, maxQuestions: config.maxDirectionQuestions, maxTokens: orchestratorTokens, signal }),
+	);
 	if (framing.questions.length) phase(user ? "Asking you for direction" : "No UI: proceeding on the orchestrator's interpretation");
-	const directions = await askDirections(framing, user);
+	const directions = await step("directions", () => askDirections(framing, user));
 	const briefText = brief(prompt, framing.goal, directions);
 
 	const report: BrainstormReport = {
@@ -105,7 +111,7 @@ export async function runBrainstorm(prompt: string, config: BrainstormConfig, de
 	async function resolveOne(dispute: Dispute): Promise<Resolution | undefined> {
 		onEvent?.({ type: "dispute", dispute, status: "resolving" });
 		try {
-			const resolution = await resolveDispute(dispute, resolveCtx);
+			const resolution = await step(`resolve:${dispute.id}`, () => resolveDispute(dispute, resolveCtx));
 			report.resolutions.push(resolution);
 			onEvent?.({ type: "dispute", dispute, status: "resolved", resolution });
 			return resolution;
@@ -118,7 +124,7 @@ export async function runBrainstorm(prompt: string, config: BrainstormConfig, de
 
 	try {
 		phase(`Exploring pathways with ${panel.length} panelists`);
-		const { proposals, failed } = await collectProposals(briefText, panel, {
+		const { proposals, failed } = await step("proposals", () => collectProposals(briefText, panel, {
 			llm,
 			budget,
 			timeoutMs: config.callTimeoutMs,
@@ -127,13 +133,15 @@ export async function runBrainstorm(prompt: string, config: BrainstormConfig, de
 			artifacts: deps.artifacts,
 			signal,
 			onEvent,
-		});
+		}));
 		report.skipped.push(...failed);
 		report.proposals = proposals;
 		if (proposals.length < 2) throw new Error(`Only ${proposals.length} panelist(s) answered: ${failed.map((f) => `${f.id}: ${f.reason}`).join("; ")}`);
 
 		phase("Mapping the option space");
-		const map: PathwayMap = await mapPathways(briefText, proposals, { llm, budget, model: orchestrator, maxDisputes: config.maxDisputes, maxTokens: orchestratorTokens, signal });
+		const map: PathwayMap = await step("map", () =>
+			mapPathways(briefText, proposals, { llm, budget, model: orchestrator, maxDisputes: config.maxDisputes, maxTokens: orchestratorTokens, signal }),
+		);
 		report.map = map;
 		for (const dispute of map.disputes) onEvent?.({ type: "dispute", dispute, status: "open" });
 
@@ -153,7 +161,7 @@ export async function runBrainstorm(prompt: string, config: BrainstormConfig, de
 	if (report.map.pathways.length) {
 		phase("Ranking pathways");
 		// Convergence is the payoff of everything spent so far, so it may run past the cap once.
-		const convergence = await callStructured(llm, budget.uncapped(), {
+		const convergence = await step("converge", () => callStructured(llm, budget.uncapped(), {
 			model: orchestrator,
 			label: "orchestrator:converge",
 			system: ORCHESTRATOR_SYSTEM,
@@ -164,7 +172,7 @@ export async function runBrainstorm(prompt: string, config: BrainstormConfig, de
 			thinking: "high",
 			maxTokens: orchestratorTokens,
 			signal,
-		}).catch((error) => {
+		})).catch((error) => {
 			phase(`Ranking failed: ${(error as Error).message}`);
 			return EMPTY_CONVERGENCE;
 		});

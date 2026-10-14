@@ -1,8 +1,8 @@
 {
-  "$comment": "Harness config. Model refs are 'provider/model-id' (e.g. 'openrouter/z-ai/glm-5.3', 'ollama/qwen3.6:27b'). Copied to ~/.harness/agent/harness.json by `harness init`; edit that copy.",
+  "$comment": "Harness config. Model refs are 'provider/model-id' (e.g. 'openrouter/z-ai/glm-5.3'). 'local/large' and 'local/small' are aliases set per machine in .env (HARNESS_LOCAL_LARGE / HARNESS_LOCAL_SMALL). Copied to ~/.harness/agent/harness.json by `harness init`; edit that copy.",
   "router": {
     "classifierModels": [
-      "ollama/qwen3.6:4b",
+      "local/small",
       "anthropic/claude-haiku-5-5",
       "openrouter/qwen/qwen3.8-flash"
     ],
@@ -12,7 +12,10 @@
     "alwaysTools": [
       "read",
       "tool_search",
-      "delegate"
+      "delegate",
+      "todo",
+      "recall",
+      "remember"
     ]
   },
   "routes": {
@@ -21,19 +24,51 @@
       "models": [
         "anthropic/claude-sonnet-5-5",
         "openai/gpt-5.6-terra",
-        "ollama/qwen3.6:27b"
+        "local/large"
       ],
       "thinking": "low",
       "tools": [],
       "keywords": [],
-      "skills": []
+      "skills": [],
+      "policy": "ask"
+    },
+    "plan": {
+      "description": "Planning before building: understand the codebase or problem, compare approaches, and produce a step-by-step plan without changing anything.",
+      "models": [
+        "anthropic/claude-opus-5-5",
+        "openai/gpt-6.1-sol",
+        "local/large"
+      ],
+      "thinking": "high",
+      "tools": [
+        "grep",
+        "find",
+        "ls",
+        "bash",
+        "web_search",
+        "fetch_content"
+      ],
+      "keywords": [
+        "\bplan\b",
+        "how should (i|we) (implement|build|structure|approach)",
+        "design (the|a)\b",
+        "architecture for",
+        "before (we|you) (start|code)"
+      ],
+      "prompt": "Planning mode: you cannot change files. Investigate (read, grep, delegate to scout), then give a concrete numbered plan with files to touch, risks and tests, and record it with the todo tool. Finish by suggesting `/handoff --to code <goal>`.",
+      "agents": [
+        "scout",
+        "researcher"
+      ],
+      "skills": [],
+      "policy": "readonly"
     },
     "code": {
       "description": "Reading, writing, debugging, refactoring or testing code in the current project; running shell commands.",
       "models": [
         "anthropic/claude-opus-5-5",
         "openai/gpt-6.1-sol",
-        "ollama/qwen3.6:27b"
+        "local/large"
       ],
       "thinking": "medium",
       "tools": [
@@ -59,15 +94,22 @@
       ],
       "agents": [
         "scout",
-        "coder"
-      ]
+        "coder",
+        "reviewer"
+      ],
+      "policy": "ask",
+      "sandbox": false,
+      "mcp": [
+        "serena"
+      ],
+      "prompt": "For navigating large codebases prefer symbol tools (mcp__serena__*, load via tool_search) over reading whole files. Delegate broad exploration to scout and isolated implementation to coder (own worktree)."
     },
     "research": {
       "description": "Questions needing current or external information: news, docs, versions, prices, facts to look up and cite.",
       "models": [
         "anthropic/claude-sonnet-5-5",
         "google/gemini-3.1-pro-preview",
-        "ollama/qwen3.6:27b"
+        "local/large"
       ],
       "thinking": "medium",
       "tools": [
@@ -93,13 +135,15 @@
       "agents": [
         "researcher",
         "browser"
-      ]
+      ],
+      "policy": "readonly"
     },
     "browse": {
       "description": "Interacting with a specific website: open a URL, click, fill forms, take screenshots, read a page that needs JavaScript.",
       "models": [
         "anthropic/claude-sonnet-5-5",
-        "openai/gpt-5.6-terra"
+        "openai/gpt-5.6-terra",
+        "local/large"
       ],
       "thinking": "low",
       "tools": [
@@ -129,14 +173,16 @@
       "agents": [
         "browser",
         "researcher"
-      ]
+      ],
+      "policy": "ask"
     },
     "brainstorm": {
       "description": "Abstract or open-ended goals where the options should be explored: brainstorming, choosing an approach, decisions with trade-offs, strategy, second opinions.",
       "models": [
         "anthropic/claude-fable-5-1",
         "anthropic/claude-opus-5-5",
-        "openai/gpt-6.1-sol"
+        "openai/gpt-6.1-sol",
+        "local/large"
       ],
       "thinking": "medium",
       "tools": [
@@ -156,7 +202,41 @@
       "skills": [],
       "agents": [
         "researcher"
-      ]
+      ],
+      "policy": "readonly"
+    },
+    "science": {
+      "description": "Scientific or medical questions that should be answered from the research literature: what do studies show, is there evidence that, systematic or literature review, meta-analysis, effect of X on Y.",
+      "models": [
+        "anthropic/claude-fable-5-1",
+        "anthropic/claude-opus-5-5",
+        "openai/gpt-6.1-sol",
+        "local/large"
+      ],
+      "thinking": "medium",
+      "tools": [
+        "science",
+        "papers",
+        "web_search",
+        "fetch_content"
+      ],
+      "keywords": [
+        "\b(studies|study) (show|find|found|suggest)",
+        "\bevidence (for|that|on)\b",
+        "literature review",
+        "systematic review",
+        "meta-?analys",
+        "\bpeer[- ]reviewed\b",
+        "\bpapers? on\b",
+        "\bclinical trials?\b",
+        "\bRCTs?\b"
+      ],
+      "prompt": "For literature questions call the `science` tool with the full question and context; it runs a systematic-review-style pipeline and returns a digest with the report path. For quick lookups use `papers`. Always cite papers by [P#] or DOI.",
+      "agents": [
+        "researcher"
+      ],
+      "skills": [],
+      "policy": "readonly"
     }
   },
   "mcpServers": {
@@ -164,6 +244,18 @@
       "url": "http://localhost:8931/mcp",
       "description": "Real Chromium browser: navigate pages, click, type, read the accessibility snapshot, take screenshots.",
       "exposure": "deferred",
+      "timeout": 120
+    },
+    "serena": {
+      "command": "serena",
+      "args": [
+        "start-mcp-server",
+        "--project-from-cwd",
+        "--context=ide"
+      ],
+      "description": "Code intelligence via language servers: find symbols, references, definitions, and symbol-level edits.",
+      "exposure": "deferred",
+      "enabled": false,
       "timeout": 120
     }
   },
@@ -215,7 +307,9 @@
       "todo",
       "recall",
       "papers",
-      "brainstorm"
+      "brainstorm",
+      "remember",
+      "science"
     ],
     "askTools": [
       "browser_(fill_form|file_upload|run_code|evaluate|drop)",
@@ -240,7 +334,8 @@
     "orchestrator": [
       "anthropic/claude-fable-5-1",
       "anthropic/claude-opus-5-5",
-      "openai/gpt-6.1-sol"
+      "openai/gpt-6.1-sol",
+      "local/large"
     ],
     "panel": [
       {
@@ -260,14 +355,18 @@
       },
       {
         "id": "local",
-        "model": "ollama/qwen3.6:27b"
+        "model": "local/large"
+      },
+      {
+        "id": "local-small",
+        "model": "local/small"
       }
     ],
     "minPanelists": 2,
     "judge": [
       "openrouter/z-ai/glm-5.3",
       "anthropic/claude-sonnet-5-5",
-      "ollama/qwen3.6:27b"
+      "local/large"
     ],
     "evidenceAgent": "researcher",
     "maxDirectionQuestions": 4,
@@ -283,5 +382,52 @@
       "orchestrator": 8000
     },
     "reportDir": ".harness/brainstorms"
+  },
+  "memory": {
+    "dir": "memory",
+    "pinnedChars": 1500
+  },
+  "telemetry": {
+    "enabled": true,
+    "dir": "telemetry"
+  },
+  "science": {
+    "orchestrator": [
+      "anthropic/claude-fable-5-1",
+      "anthropic/claude-opus-5-5",
+      "openai/gpt-6.1-sol",
+      "local/large"
+    ],
+    "screeners": [
+      "anthropic/claude-haiku-5-5",
+      "openai/gpt-5.6-luna",
+      "google/gemini-3.5-flash",
+      "local/small",
+      "local/large"
+    ],
+    "extractor": [
+      "google/gemini-3.5-flash",
+      "anthropic/claude-sonnet-5-5",
+      "local/large"
+    ],
+    "verifier": [
+      "anthropic/claude-sonnet-5-5",
+      "openai/gpt-5.6-terra",
+      "local/large"
+    ],
+    "sources": [
+      "openalex",
+      "pubmed",
+      "semanticscholar",
+      "arxiv"
+    ],
+    "maxDirectionQuestions": 3,
+    "maxQueries": 5,
+    "perQuery": 15,
+    "maxCandidates": 60,
+    "maxIncluded": 20,
+    "askUser": true,
+    "maxCostUSD": 5,
+    "reportDir": ".harness/science"
   }
 }

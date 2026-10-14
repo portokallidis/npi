@@ -9,6 +9,7 @@ import { renderDigest, renderReport, scorecard } from "../src/brainstorm/report.
 import { EXPLAIN_OPTION } from "../src/brainstorm/resolve/askUser.ts";
 import type { BrainstormConfig, BrainstormEvent, MapOutput } from "../src/brainstorm/types.ts";
 import { ArtifactStore } from "../src/core/artifacts.ts";
+import { RunState } from "../src/core/runstate.ts";
 import type { SubagentRunner } from "../src/core/subagent.ts";
 import { FakeLlm, type RecordedCall, textMessage, toolCallMessage } from "./fakes.ts";
 
@@ -276,5 +277,19 @@ describe("runBrainstorm (explore and decide)", () => {
 		expect(report.stoppedEarly).toMatch(/Budget exceeded/);
 		expect(report.convergence.ranking).toHaveLength(3);
 		expect(report.costUSD).toBeCloseTo(0.06);
+	});
+
+	it("resumes from checkpointed stages without re-calling models or re-asking the user", async () => {
+		const file = join(mkdtempSync(join(tmpdir(), "rs-")), "state.json");
+		const first = await runBrainstorm("db?", config, { llm: new FakeLlm(responder()), state: new RunState(file) });
+
+		const broken = new FakeLlm(() => {
+			throw new Error("models are down");
+		});
+		const again = await runBrainstorm("db?", config, { llm: broken, state: new RunState(file) });
+		expect(broken.calls).toHaveLength(0);
+		expect(again.recommended).toEqual(first.recommended);
+		expect(again.resolutions.map((r) => r.disputeId).sort()).toEqual(first.resolutions.map((r) => r.disputeId).sort());
+		expect(again.costUSD).toBe(0);
 	});
 });

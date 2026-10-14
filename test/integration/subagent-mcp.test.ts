@@ -54,6 +54,7 @@ TITLE=${title}`));
 			agentDir,
 			llm: { available: async () => true, complete: async () => Promise.reject(new Error("unused")) },
 			fallbackModels: () => [],
+			guard: JSON.parse(readFileSync(new URL("../../config/harness.json", import.meta.url), "utf8")).guard,
 			artifacts: new ArtifactStore(process.cwd(), ".harness/artifacts", "integration"),
 			mcpCatalogue: JSON.parse(readFileSync(new URL("../../config/harness.json", import.meta.url), "utf8")).mcpServers,
 			contextTokens: 50_000,

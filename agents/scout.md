@@ -1,7 +1,7 @@
 ---
 name: scout
 description: Fast read-only codebase reconnaissance; returns the relevant files, symbols and how they connect.
-model: anthropic/claude-haiku-5-5, ollama/qwen3.6:27b, openai/gpt-5.6-luna
+model: anthropic/claude-haiku-5-5, local/small, openai/gpt-5.6-luna
 thinking: low
 tools: read, grep, find, ls
 ---

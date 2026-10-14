@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import {
 	createAgentSession,
@@ -11,8 +12,10 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { AgentDef } from "./agents.ts";
 import { type ArtifactStore, extractSummary } from "./artifacts.ts";
+import { commitAll, diffStat, gitRoot, worktreeAdd } from "./gitsnap.ts";
 import { HARNESS_ROOT } from "./config.ts";
 import { firstAvailable, type Llm, parseModelRef } from "./llm.ts";
+import { decide, type GuardConfig, type PolicyLevel, sandboxCommand } from "./policy.ts";
 import { withTimeout } from "./pool.ts";
 
 export interface SubagentUsage {
@@ -31,6 +34,10 @@ export interface SubagentRequest {
 	model?: string;
 	signal?: AbortSignal;
 	onProgress?: (line: string) => void;
+	/** Policy inherited from the calling mode. Subagents have no UI, so "ask" means block. Default: readonly. */
+	policy?: { level: PolicyLevel; sandboxed: boolean };
+	/** Run in this directory instead of the session cwd (e.g. a git worktree). */
+	cwd?: string;
 }
 
 export interface SubagentResult {
@@ -60,6 +67,7 @@ export interface SessionRunnerOptions {
 	contextTokens: number;
 	summaryTokens: number;
 	timeoutMs: number;
+	guard: GuardConfig;
 	/** Harness MCP catalogue (harness.json `mcpServers`); agents' `mcp` names resolve here, then in mcp.json. */
 	mcpCatalogue?: Record<string, unknown>;
 	/** Defaults to a runtime reading the agent dir's models.json and auth (tests inject one). */
@@ -138,13 +146,38 @@ export function createSessionRunner(options: SessionRunnerOptions): SubagentRunn
 				const model = modelRuntime.getModel(provider, id);
 				if (!model) throw new Error(`Model ${modelRef} not found`);
 
-				const extensionFactories: InlineExtension[] = [];
+				// Worktree isolation: a fresh branch per run, so parallel coders never collide.
+				let cwd = request.cwd ?? options.cwd;
+				let worktree: { path: string; branch: string } | undefined;
+				if (agent.isolation === "worktree" && !request.cwd) {
+					const root = await gitRoot(options.cwd);
+					if (!root) throw new Error(`Agent "${agent.name}" needs a git repository for worktree isolation`);
+					const id = `${agent.name}-${Date.now().toString(36)}`;
+					worktree = { path: join(root, ".harness", "worktrees", id), branch: `harness/${id}` };
+					await worktreeAdd(root, worktree.path, worktree.branch);
+					cwd = worktree.path;
+				}
+				const policy = request.policy ?? { level: "readonly" as PolicyLevel, sandboxed: false };
+				const extensionFactories: InlineExtension[] = [
+					(pi) => {
+						pi.on("tool_call", (event) => {
+							const hints = pi.getAllTools().find((t) => t.name === event.toolName)?.annotations;
+							const input = event.input as Record<string, unknown>;
+							const d = decide(policy.level, { tool: event.toolName, input, hints }, options.guard, { cwd, home: homedir(), sandboxed: policy.sandboxed });
+							if (d.action !== "allow") return { block: true, reason: `Blocked (${policy.level} policy, no approver in a subagent): ${d.reason}` };
+							if (policy.sandboxed && event.toolName === "bash" && typeof input.command === "string") {
+								input.command = sandboxCommand(input.command, cwd, options.guard);
+							}
+							return undefined;
+						});
+					},
+				];
 				if (agent.mcp?.length) {
 					const servers = agent.mcp;
 					extensionFactories.push(createMcpExtension({ loadConfig: () => mcpConfigFor(options.agentDir, servers, options.mcpCatalogue) }));
 				}
 				const resourceLoader = new DefaultResourceLoader({
-					cwd: options.cwd,
+					cwd,
 					agentDir: options.agentDir,
 					extensionFactories,
 					disabledBuiltinExtensions: ["mcp", "codemode", "tool_search"],
@@ -159,13 +192,13 @@ export function createSessionRunner(options: SessionRunnerOptions): SubagentRunn
 				await resourceLoader.reload();
 
 				({ session } = await createAgentSession({
-					cwd: options.cwd,
+					cwd,
 					agentDir: options.agentDir,
 					modelRuntime,
 					model,
 					thinkingLevel: agent.thinking ?? "medium",
 					resourceLoader,
-					sessionManager: SessionManager.inMemory(options.cwd),
+					sessionManager: SessionManager.inMemory(cwd),
 				}));
 				const live = session;
 				await live.bindExtensions({});
@@ -203,10 +236,19 @@ export function createSessionRunner(options: SessionRunnerOptions): SubagentRunn
 				}
 				const full = live.getLastAssistantText() ?? "";
 				const artifact = saveArtifact(full);
+				let note = "";
+				if (worktree) {
+					const stat = await diffStat(worktree.path).catch(() => "");
+					const subject = `${agent.name}: ${request.task.split("\n")[0].slice(0, 72)}`;
+					const sha = await commitAll(worktree.path, subject).catch(() => undefined);
+					note = sha
+						? `\n\nChanges committed on branch ${worktree.branch} (${sha}) in ${worktree.path}:\n${stat}\nReview: git diff HEAD...${worktree.branch} · merge: git merge ${worktree.branch}`
+						: `\n\nNo file changes (worktree ${worktree.path}).`;
+				}
 				return {
 					agent: agent.name,
 					model: modelRef,
-					text: extractSummary(full, summaryTokens),
+					text: extractSummary(full, summaryTokens) + note,
 					artifact,
 					usage,
 					error: overBudget ? `stopped at 1.5x its ${contextTokens}-token context budget (partial result)` : undefined,
