@@ -274,7 +274,7 @@ Model refs are `provider/model-id`, split at the first `/`: `openrouter/z-ai/glm
 ## Benchmarks and observability
 - **Built in:** with `telemetry.enabled` (the default), every model call is timed and appended to `~/.harness/agent/telemetry/bench/<date>.jsonl`. That covers the agent loop and also the harness's own direct calls (classifier, digests, brainstorm and science). Each call records model, device, time to first token, total time, tokens, cache reads, reasoning tokens and cost. `/bench report` writes a Markdown report to `.harness/benchmarks/`; `/bench off` and `/bench on` pause and resume recording for the session. Set `telemetry.enabled: false` to turn all of this off.
 - **Device names** come from `HARNESS_DEVICE_<PROVIDER>` in `.env`; without one, a device shows as "this machine", "LAN server" or "cloud API". IPs never appear in reports.
-- **Demos:** `npm run demo` / `npm run demo:quick` record the same numbers per demo, plus quality results. See [test/demos/README.md](../test/demos/README.md).
+- **Demos:** `npm run demo` / `npm run demo:quick` record the same numbers per demo, plus quality results. `npm run bench:report [-- --last N --publish]` merges runs into one report. See [test/demos/README.md](../test/demos/README.md).
 - **Optional dashboards (pi packages, no code needed):**
   - `npx harness install npm:pi-otel`: OpenTelemetry traces of agent sessions. `/otel start` opens a local dashboard.
   - `npx harness install npm:@langfuse/pi-observability-plugin`: Langfuse traces. The plugin reads `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and `LANGFUSE_BASE_URL` (see `.env.example`).

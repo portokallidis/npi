@@ -44,4 +44,11 @@ describe("callStructured", () => {
 		await expect(callStructured(llm, budget, call)).rejects.toBeInstanceOf(BudgetExceededError);
 		expect(llm.calls).toHaveLength(0);
 	});
+
+	it("retries without thinking when the first answer had no tool call", async () => {
+		let n = 0;
+		const llm = new FakeLlm(() => (n++ === 0 ? textMessage("…thinking ran out of tokens…") : toolCallMessage("submit", { verdict: "ok", confidence: 0.5 })));
+		await expect(callStructured(llm, new Budget(1), { ...call, thinking: "high" })).resolves.toEqual({ verdict: "ok", confidence: 0.5 });
+		expect(llm.calls.map((c) => c.request.thinking)).toEqual(["high", "off"]);
+	});
 });

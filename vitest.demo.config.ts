@@ -5,7 +5,7 @@ export default defineConfig({
 	test: {
 		include: ["test/demos/**/*.demo.test.ts"],
 		globalSetup: ["test/demos/global-setup.ts"],
-		testTimeout: 30 * 60_000,
+		testTimeout: 90 * 60_000,
 		hookTimeout: 120_000,
 		fileParallelism: false,
 		reporters: ["verbose"],

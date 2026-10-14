@@ -3,7 +3,12 @@
 import { expect, it } from "vitest";
 import { runScience } from "../../src/science/pipeline.ts";
 import { renderScienceDigest, saveScience } from "../../src/science/report.ts";
+import { rmSync } from "node:fs";
+import { join } from "node:path";
+import { RunState } from "../../src/core/runstate.ts";
 import { banner, bench, config, demo, ms } from "./harness.ts";
+
+const stateFile = join(process.cwd(), ".harness", "demo-state", "science.json");
 
 it("science: creatine supplementation and memory in healthy adults", () =>
 	bench.run("science", async (metrics) => {
@@ -12,9 +17,11 @@ it("science: creatine supplementation and memory in healthy adults", () =>
 	const start = Date.now();
 	const report = await runScience("Does creatine supplementation improve memory in healthy adults?", { ...small, sources: [...small.sources] }, {
 		llm,
+		state: new RunState(stateFile), // a rerun after a failure resumes from the last finished stage
 		onEvent: (e) => e.type === "phase" && console.log(`  [${ms(start)}] ${e.text}`),
 	});
 	const path = saveScience(report, process.cwd(), ".harness/science");
+	rmSync(stateFile, { force: true });
 	const supported = report.checks.filter((c) => c.supported === "yes").length;
 	const cited = report.checks.filter((c) => c.supported !== "uncited").length;
 	banner(`Science review in ${ms(start)} (${report.models.screeners.join(" + ")} screening, ${report.models.orchestrator} synthesis)`, [

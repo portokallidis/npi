@@ -1,7 +1,7 @@
 # Benchmark report
 
-Run `2026-10-14T16-12-53-926Z` · 2026-10-14T16:12:55.182Z
-Client: os: win32 10.0.26200 · cpu: 13th Gen Intel(R) Core(TM) i7-13700H · cores: 20 · memoryGB: 34 · freeMemoryGB: 10 · node: v22.20.0
+Runs: 2026-10-14T16-07-42-814Z, 2026-10-14T16-12-53-926Z, 2026-10-14T16-21-07-989Z, 2026-10-14T16-51-16-480Z, 2026-10-14T17-40-56-820Z · 2026-10-14T16:07:44.491Z
+Client: os: win32 10.0.26200 · cpu: 13th Gen Intel(R) Core(TM) i7-13700H · cores: 20 · memoryGB: 34 · freeMemoryGB: 8 · node: v22.20.0
 
 ## Demos
 | Demo | Wall time | Model calls (incl. agent turns) | Tokens in / out | Cost | Results |
@@ -11,12 +11,14 @@ Client: os: win32 10.0.26200 · cpu: 13th Gen Intel(R) Core(TM) i7-13700H · cor
 | ✅ small-model: digest | 3.90s | 1 | 4,860 / 42 | $0 | model: local/small; tokens in: 5413; tokens to context: 259; kept the failure: yes |
 | ✅ small-model: screening | 12.1s | 1 | 709 / 212 | $0 | model: local/small; accuracy: 6/6 |
 | ✅ guard | 0.00s | 0 | 0 / 0 | $0 | decisions: 40 |
+| ✅ science | 1157.3s | 9 | 26,178 / 14,518 | $0 | found: 30; screened: 12; included: 2; kappa: 0.18; quotes verified: 2/2; citations supported: 5/19 |
+| ✅ brainstorm | 876.4s | 4 | 6,519 / 11,474 | $0 | panel: local+local-alt1; orchestrator: local/large; pathways: 5; disputes: 2; resolved: 2; recommended: yes |
 
 ## Models and devices
 | Model | Device | Calls | Errors | Median time | p95 time | Median TTFT | Output tok/s | Prompt tok/s | Thinking calls | Cost |
 |---|---|---|---|---|---|---|---|---|---|---|
-| lmstudio/qwen/qwen3.5-9b | Mac (LM Studio, MLX 4-bit) | 9 | 0 | 3.01s | 109.4s | 1.50s | 20.1 | 581.4 | 0 | $0 |
-| llamacpp/qwen3.8-27b-gsq-rco-iq3_s | Linux GPU server (llama.cpp, Qwen 3.8 27B IQ3) | 1 | 0 | 38.5s | 38.5s | 4.23s | 13.7 | 48.2 | 1 | $0 |
+| lmstudio/qwen/qwen3.5-9b | Mac (LM Studio, MLX 4-bit) | 8 | 0 | 3.01s | 12.1s | 1.50s | 23.9 | 753.4 | 0 | $0 |
+| llamacpp/qwen3.8-27b-gsq-rco-iq3_s | Linux GPU server (llama.cpp, Qwen 3.8 27B IQ3) | 13 | 0 | 81.1s | 586.2s | 8.75s | 13.5 | 130.8 | 5 | $0 |
 
 ## Pipeline stages
 | Demo · stage | Calls | Median time | Total time | Avg tokens in | Avg tokens out |
@@ -24,8 +26,18 @@ Client: os: win32 10.0.26200 · cpu: 13th Gen Intel(R) Core(TM) i7-13700H · cor
 | router · router | 6 | 3.00s | 17.8s | 641 | 42 |
 | small-model: digest · digest | 1 | 3.79s | 3.79s | 4,860 | 42 |
 | small-model: screening · demo:screen | 1 | 12.1s | 12.1s | 709 | 212 |
-| brainstorm · orchestrator:frame | 1 | 38.5s | 38.5s | 749 | 470 |
-| brainstorm · panel:local-small | 1 | 109.4s | 109.4s | 999 | 2,010 |
+| science · orchestrator:frame | 1 | 57.2s | 57.2s | 712 | 770 |
+| science · science:protocol | 1 | 208.6s | 208.6s | 704 | 2,803 |
+| science · science:screen-b | 1 | 48.3s | 48.3s | 5,431 | 439 |
+| science · science:screen-a | 1 | 102.8s | 102.8s | 5,417 | 519 |
+| science · science:screen-judge | 1 | 24.6s | 24.6s | 3,193 | 214 |
+| science · science:extract | 2 | 81.0s | 120.0s | 1,502 | 512 |
+| science · science:synthesis | 1 | 586.2s | 586.2s | 1,686 | 7,777 |
+| science · science:verify | 1 | 91.8s | 91.8s | 6,032 | 973 |
+| brainstorm · cross-exam:local | 1 | 35.9s | 35.9s | 721 | 474 |
+| brainstorm · cross-exam:local-alt1 | 1 | 81.1s | 81.1s | 719 | 600 |
+| brainstorm · judge | 1 | 212.1s | 212.1s | 2,274 | 2,766 |
+| brainstorm · orchestrator:converge | 1 | 581.2s | 581.2s | 2,805 | 7,634 |
 
 ## Agent runs
 | Demo | Agent | Model | Device | Time | Turns | Peak context | Tokens in / out | Status |

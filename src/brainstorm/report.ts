@@ -94,7 +94,7 @@ ${p.summary}
 
 	return `# Brainstorm: ${report.framing.goal}
 
-${c.summary}
+${c.summary.replaceAll(String.raw`\n`, "\n")}
 
 **Directions**
 ${directions}

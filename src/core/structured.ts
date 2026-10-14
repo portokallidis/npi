@@ -50,6 +50,7 @@ export async function callStructured<T extends TSchema>(llm: Llm, budget: Budget
 	const instruction = `\n\nRespond ONLY by calling the \`${call.toolName}\` tool exactly once. If you cannot call tools, reply with a single JSON object matching its parameters.`;
 	let prompt = call.prompt + instruction;
 	let lastError = "";
+	let thinking = call.thinking;
 
 	for (let attempt = 0; attempt < 2; attempt++) {
 		budget.assertAvailable();
@@ -57,7 +58,7 @@ export async function callStructured<T extends TSchema>(llm: Llm, budget: Budget
 			system: call.system,
 			messages: [userMessage(prompt)],
 			tools: [tool],
-			thinking: call.thinking,
+			thinking,
 			label: call.label,
 			maxTokens: call.maxTokens,
 			signal: call.signal,
@@ -66,6 +67,9 @@ export async function callStructured<T extends TSchema>(llm: Llm, budget: Budget
 		const result = validate(call.schema, extractArgs(message, call.toolName));
 		if (result.ok) return result.value;
 		lastError = result.errors;
+		// Reasoning can eat the whole output budget before the answer is written (stopReason "length",
+		// or no tool call at all): retry without thinking so the budget goes to the answer.
+		if (message.stopReason === "length" || extractArgs(message, call.toolName) === undefined) thinking = "off";
 		const previous = JSON.stringify(extractArgs(message, call.toolName) ?? assistantText(message)).slice(0, 4000);
 		prompt = `${call.prompt}\n\nYour previous answer was invalid (${lastError}). Previous answer:\n${previous}\n\nFix it.${instruction}`;
 	}
