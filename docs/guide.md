@@ -39,7 +39,7 @@ npx harness                                     # first run seeds ~/.harness/age
 | `research` | current facts, docs, versions, prices, with citations | keywords: latest, news, sources, cite… | Sonnet 5.5 → Gemini 3.1 Pro → local | `web_search` `fetch_content` `get_search_content`; Playwright MCP; agents `researcher`, `browser` |
 | `browse` | operate a website: open, click, fill, screenshot | URLs, "open the site", click, screenshot… | Sonnet 5.5 → GPT-5.6 Terra | Playwright MCP (5 core tools declared, the other 20 via `tool_search`); agents `browser`, `researcher` |
 | `brainstorm` | abstract goals, decisions, strategy, "what are my options" | brainstorm, trade-offs, should I/we, options for, ways to… | Fable 5.1 → Opus 5.5 → GPT-6.1 Sol | `brainstorm` tool; agent `researcher` (for evidence) |
-| `science` | answers from research papers with graded evidence | studies show, evidence for, systematic review, meta-analysis, clinical trials, RCT… | Fable 5.1 → Opus 5.5 → GPT-6.1 Sol → local | `science` and `papers` tools; policy `readonly` |
+| `science` | answers from research papers with graded evidence | studies show, evidence for, systematic review, meta-analysis, clinical trials, RCT… | Fable 5.1 → Opus 5.5 → GPT-6.1 Sol → local | `science`, `papers`, `web_search`, `fetch_content` tools; policy `readonly` |
 
 Every mode also has `read`, `tool_search` (finds and loads any other registered tool on demand), `delegate`, `todo`, `remember` and `recall`. Each mode also has a **policy** (`readonly`, `ask` or `auto`); see [Safety](#safety).
 
@@ -47,7 +47,7 @@ Every mode also has `read`, `tool_search` (finds and loads any other registered 
 1. **Pinned:** `/route code` keeps that mode until `/route auto`.
 2. **Per-prompt prefix:** `#research what changed in Node 26?` (the prefix is removed before the model sees the prompt). It's `#`, not `@`, because pi uses `@` for files.
 3. **Keywords:** the regexes in each route's `keywords`. A tie between two routes counts as no match.
-4. **Classifier:** a small model (local Qwen 4B → Haiku 5.5 → OpenRouter Qwen Flash) with a 2.5 s timeout. It's used only if confidence ≥ 0.55, and skipped for prompts under 4 words.
+4. **Classifier:** a small model: `local/small` (set by `HARNESS_LOCAL_SMALL` in `.env`) → Haiku 5.5 → OpenRouter Qwen Flash, with an 8 s timeout (`router.classifierTimeoutMs`). Local models are pre-warmed at session start. It's used only if confidence ≥ 0.55, and skipped for prompts under 4 words.
 5. **Sticky:** otherwise stay on the previous mode (follow-ups like "yes, do it" keep their context).
 6. **Default:** `chat`.
 
@@ -61,7 +61,7 @@ Every mode also has `read`, `tool_search` (finds and loads any other registered 
 ## Modes in detail
 
 ### `chat`
-- Plain conversation with the smallest loadout: `read`, `tool_search` and `delegate`.
+- Plain conversation with the smallest loadout: `read`, `tool_search`, `delegate`, `todo`, `remember` and `recall`.
 - No skills are listed in the prompt, but `/skill:name` still loads any skill explicitly.
 
 ### `code`
@@ -242,6 +242,7 @@ Model refs are `provider/model-id`, split at the first `/`: `openrouter/z-ai/glm
 | `/policy [readonly\|ask\|auto\|reset]` | show or override the approval policy for this session |
 | `/stats [days]` | cost by model and mode, cache hit rate, routing reasons, tool errors |
 | `/memory` | where long-term notes live, plus the pinned ones |
+| `/bench [report|on|off]` | benchmark report per model and device, or pause/resume recording |
 | `/route [name\|auto]` | show, pin or unpin the mode |
 | `/routes` | list modes with their models and tools |
 | `/agents` | list subagents with their models, tools and MCP servers |
@@ -270,6 +271,16 @@ Model refs are `provider/model-id`, split at the first `/`: `openrouter/z-ai/glm
 - **Telemetry:** every routing decision, model call (tokens, cache, cost), tool call (duration, errors), subagent run and brainstorm is appended to `~/.harness/agent/telemetry/<date>.jsonl`, which `/stats` summarizes. It's a flat JSON format, easy to send to OpenTelemetry or Langfuse later.
 - **Evals:** `test/evals/router-cases.json` holds labelled prompts. `npm test` checks keyword routing precision. `HARNESS_LIVE_EVAL=1 npx vitest --run test/evals` also scores the real classifier on the prompts keywords miss.
 
+## Benchmarks and observability
+- **Built in:** with `telemetry.enabled` (the default), every model call is timed and appended to `~/.harness/agent/telemetry/bench/<date>.jsonl`. That covers the agent loop and also the harness's own direct calls (classifier, digests, brainstorm and science). Each call records model, device, time to first token, total time, tokens, cache reads, reasoning tokens and cost. `/bench report` writes a Markdown report to `.harness/benchmarks/`; `/bench off` and `/bench on` pause and resume recording for the session. Set `telemetry.enabled: false` to turn all of this off.
+- **Device names** come from `HARNESS_DEVICE_<PROVIDER>` in `.env`; without one, a device shows as "this machine", "LAN server" or "cloud API". IPs never appear in reports.
+- **Demos:** `npm run demo` / `npm run demo:quick` record the same numbers per demo, plus quality results. See [test/demos/README.md](../test/demos/README.md).
+- **Optional dashboards (pi packages, no code needed):**
+  - `npx harness install npm:pi-otel`: OpenTelemetry traces of agent sessions. `/otel start` opens a local dashboard.
+  - `npx harness install npm:@langfuse/pi-observability-plugin`: Langfuse traces. The plugin reads `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and `LANGFUSE_BASE_URL` (see `.env.example`).
+
+  Both trace pi's agent loop. The harness's own benchmark recorder is what covers the direct pipeline calls.
+
 ## Local models and .env
 Copy `.env.example` to `.env`, in the repo or in `~/.harness/agent/`. Real environment variables take precedence over both files.
 
@@ -280,7 +291,7 @@ Copy `.env.example` to `.env`, in the repo or in `~/.harness/agent/`. Real envir
 | `OLLAMA_BASE_URL`, `VLLM_BASE_URL`, `OPENAI_COMPATIBLE_BASE_URL` (+ `*_API_KEY`) | other OpenAI-compatible servers | `ollama/<id>`, `vllm/<id>`, `openai-compatible/<id>` |
 | `HARNESS_LOCAL_LARGE`, `HARNESS_LOCAL_SMALL` | what the shared config means by `local/large` and `local/small` | e.g. `llamacpp/qwen3.8-27b…` |
 
-Every model list in `harness.json` ends with a `local/*` fallback, so the harness works with local models only, including a brainstorm panel of two local models and science screening by two local models. `harness doctor` shows what is reachable. Servers on your LAN are probed before use, so a machine that is switched off is skipped quickly.
+Every mode, brainstorm and science model list ends with a `local/*` fallback (the router classifier chain starts with `local/small`), so the harness works with local models only, including a brainstorm panel of two local models and science screening by two local models. With only one local model, brainstorm fills the panel with the same model in contrasting personas (`brainstorm.fallbackPersonas`), and science screening uses that model as two independent reviewers; reports note the reduced diversity. `harness doctor` shows what is reachable. Servers on your LAN are probed before use, so a machine that is switched off is skipped quickly.
 
 ## Layout
 
@@ -289,7 +300,7 @@ bin/harness.mjs               launcher (isolated agent dir, init, doctor)
 config/                       defaults seeded into ~/.harness/agent
 docker/compose.yml            Playwright MCP (+ optional SearXNG)
 agents/                       bundled subagents
-src/core/                     config, llm, structured output, budget, artifacts, router, policy, gitsnap, handoff, memory, telemetry, runstate, subagent runner, delegate
+src/core/                     agents, artifacts, bench, budget, config, delegate, digest, gitsnap, handoff, llm, localmodels, memory, policy, pool, router, runstate, structured, subagent, telemetry
 src/brainstorm/               frame, panel, map, resolve/{evidence,crossExam,askUser,judge}, pipeline, report
 src/science/                  papers (OpenAlex/PubMed/S2/arXiv), pipeline, report
 src/extensions/               local-models, context, telemetry, guard, router, memory, workflow, subagents, brainstorm, science

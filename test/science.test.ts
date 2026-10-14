@@ -116,9 +116,13 @@ describe("runScience", () => {
 		expect(md).toMatch(/\| depressive symptoms \| reduced \| \*\*moderate\*\*/);
 	});
 
-	it("requires two screeners", async () => {
+	it("falls back to one screener model acting as two reviewers", async () => {
 		const llm = new FakeLlm(respond);
 		llm.unavailable.add("b/screen");
-		await expect(runScience("q", config, { llm, sources })).rejects.toThrow(/two available screener/);
+		const r = await runScience("q", config, { llm, sources });
+		expect(r.screen.screeners).toEqual(["a/screen", "a/screen"]);
+		expect(llm.calls.some((c) => c.prompt.includes("second, independent reviewer"))).toBe(true);
+		llm.unavailable.add("a/screen");
+		await expect(runScience("q", config, { llm, sources })).rejects.toThrow(/No screener model available/);
 	});
 });

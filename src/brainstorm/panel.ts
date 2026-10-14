@@ -19,6 +19,16 @@ export async function selectPanel(config: BrainstormConfig, llm: Llm): Promise<P
 		if (await llm.available(p.model)) panel.push(p);
 		else skipped.push({ id: p.id, reason: `${p.model} unavailable (no credentials or local server down)` });
 	}
+	// Persona fallback: too few distinct models (e.g. one local box, no keys) — reuse what is available
+	// with contrasting personas. Weaker diversity than different models, so it is recorded in `skipped`.
+	if (panel.length > 0 && panel.length < config.minPanelists) {
+		const base = [...panel];
+		for (let i = 0; panel.length < config.minPanelists && i < config.fallbackPersonas.length; i++) {
+			const src = base[i % base.length];
+			panel.push({ ...src, id: `${src.id}-alt${i + 1}`, persona: config.fallbackPersonas[i] });
+		}
+		skipped.push({ id: "diversity", reason: `only ${base.length} distinct model(s) available; extra panelists are the same model with different personas` });
+	}
 	if (panel.length < config.minPanelists) {
 		const why = skipped.map((s) => `${s.id}: ${s.reason}`).join("; ");
 		throw new Error(`Only ${panel.length} panelist(s) available, need ${config.minPanelists}. ${why}`);

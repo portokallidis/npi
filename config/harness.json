@@ -6,7 +6,7 @@
       "anthropic/claude-haiku-5-5",
       "openrouter/qwen/qwen3.8-flash"
     ],
-    "classifierTimeoutMs": 2500,
+    "classifierTimeoutMs": 8000,
     "minConfidence": 0.55,
     "defaultRoute": "chat",
     "alwaysTools": [
@@ -16,7 +16,8 @@
       "todo",
       "recall",
       "remember"
-    ]
+    ],
+    "prewarm": true
   },
   "routes": {
     "chat": {
@@ -323,7 +324,12 @@
     "toolResultInlineChars": 12000,
     "toolResultPreviewChars": 2500,
     "subagentContextTokens": 60000,
-    "subagentSummaryTokens": 500
+    "subagentSummaryTokens": 500,
+    "digestModels": [
+      "local/small"
+    ],
+    "digestMaxInputChars": 60000,
+    "digestTimeoutMs": 20000
   },
   "subagents": {
     "maxConcurrency": 4,
@@ -381,7 +387,12 @@
       "panelist": 4000,
       "orchestrator": 8000
     },
-    "reportDir": ".harness/brainstorms"
+    "reportDir": ".harness/brainstorms",
+    "fallbackPersonas": [
+      "a skeptical, risk-focused engineer who looks for failure modes",
+      "a pragmatic operator who optimizes for cost and low maintenance",
+      "a contrarian who argues for unconventional options"
+    ]
   },
   "memory": {
     "dir": "memory",

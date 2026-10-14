@@ -55,6 +55,8 @@ export const HarnessConfigSchema = Type.Object({
 		minConfidence: Type.Number(),
 		defaultRoute: Type.String(),
 		alwaysTools: Type.Array(Type.String()),
+		/** Send a 1-token request to the first available classifier model at session start (loads local models). */
+		prewarm: Type.Boolean(),
 	}),
 	routes: Type.Record(Type.String(), RouteSchema),
 	/** MCP server catalogue (same shape as mcp.json entries). Servers connect only when a route or agent needs them. */
@@ -84,6 +86,10 @@ export const HarnessConfigSchema = Type.Object({
 		/** Default per-subagent budgets; agent frontmatter `contextTokens` / `summaryTokens` override. */
 		subagentContextTokens: Type.Number(),
 		subagentSummaryTokens: Type.Number(),
+		/** Small (ideally local) models that digest oversized tool output; [] = plain preview only. */
+		digestModels: Type.Array(Type.String()),
+		digestMaxInputChars: Type.Number(),
+		digestTimeoutMs: Type.Number(),
 	}),
 	subagents: Type.Object({
 		maxConcurrency: Type.Number(),
@@ -95,6 +101,8 @@ export const HarnessConfigSchema = Type.Object({
 		orchestrator: Type.Array(Type.String()),
 		panel: Type.Array(PanelistSchema),
 		minPanelists: Type.Number(),
+		/** Personas for extra panelists when fewer distinct models than minPanelists are available. */
+		fallbackPersonas: Type.Array(Type.String()),
 		judge: Type.Array(Type.String()),
 		evidenceAgent: Type.String(),
 		maxDirectionQuestions: Type.Number(),

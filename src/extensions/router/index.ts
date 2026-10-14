@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { firstAvailable, parseModelRef } from "../../core/llm.ts";
+import { firstAvailable, parseModelRef, userMessage } from "../../core/llm.ts";
 import { type Classifier, decideRoute, llmClassifier, parsePrefix, type RouteDecision, routeSkills, routeTools } from "../../core/router.ts";
 import { runtimeHolder } from "../runtime.ts";
 
@@ -27,9 +27,18 @@ export default function router(pi: ExtensionAPI) {
 	// MCP servers this session has connected on demand (registrations last for the session).
 	const connected = new Set<string>();
 
-	pi.on("session_start", () => {
+	pi.on("session_start", (_event, ctx) => {
 		holder.reset();
 		connected.clear();
+		// Warm the small classifier model (local servers load models lazily) so the first routing is fast.
+		const rt = holder.get(ctx);
+		if (rt.config.router.prewarm) {
+			void firstAvailable(rt.llm, rt.config.router.classifierModels)
+				.then((m) => {
+					if (m?.startsWith("local/")) return rt.llm.complete(m, { messages: [userMessage("ok")], maxTokens: 1, thinking: "off" });
+				})
+				.catch(() => undefined);
+		}
 		classifier = undefined;
 		current = undefined;
 	});

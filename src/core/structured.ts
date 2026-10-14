@@ -58,6 +58,7 @@ export async function callStructured<T extends TSchema>(llm: Llm, budget: Budget
 			messages: [userMessage(prompt)],
 			tools: [tool],
 			thinking: call.thinking,
+			label: call.label,
 			maxTokens: call.maxTokens,
 			signal: call.signal,
 		});

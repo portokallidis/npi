@@ -28,7 +28,9 @@
     "start": "node bin/harness.mjs",
     "init": "node bin/harness.mjs init",
     "test": "vitest --run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "demo": "vitest --run --config vitest.demo.config.ts",
+    "demo:quick": "vitest --run --config vitest.demo.config.ts -t quick"
   },
   "peerDependencies": {
     "@earendil-works/pi-agent-core": "*",

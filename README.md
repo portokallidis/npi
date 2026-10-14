@@ -63,7 +63,17 @@ npx harness
 | `/review` | have a read-only reviewer check your uncommitted changes |
 | `/policy readonly\|ask\|auto` | change how much the agent may do without asking |
 | `/stats` | cost, cache hits, routing and errors |
+| `/bench report` · `/bench off` | timing per model and device (time to first token, tokens/s); turn recording off or on |
 | `/memory` | notes it keeps between sessions |
+
+## Try the demos
+
+```bash
+npm run demo:quick   # routing, small-model jobs, a real subagent, safety policies
+npm run demo         # + multi-model brainstorm and a literature review (slow on local models)
+```
+
+Each run prints what happened and writes a benchmark report (time, tokens/s and quality per model and device). [Latest numbers](docs/benchmarks.md) · [What each demo shows](test/demos/README.md)
 
 ## Learn more
 
@@ -72,4 +82,4 @@ npx harness
 
 ## Status
 
-Early. The test suite uses scripted models. The routing, local models (LM Studio and llama.cpp) and the browser have also been run for real.
+Early. Unit tests use scripted models. The demos run on real local models (LM Studio and llama.cpp) and real paper databases; see the [benchmarks](docs/benchmarks.md).

@@ -21,6 +21,7 @@ const config: BrainstormConfig = {
 		{ id: "c", model: "p/c" },
 	],
 	minPanelists: 2,
+	fallbackPersonas: [],
 	judge: ["p/a", "p/judge"],
 	evidenceAgent: "researcher",
 	maxDirectionQuestions: 2,
@@ -257,10 +258,17 @@ describe("runBrainstorm (explore and decide)", () => {
 		expect(ops).toMatchObject({ method: "user", trail: ["The user (the person asking) says: We have no ops staff"] });
 	});
 
-	it("skips unavailable panelists and fails below the minimum", async () => {
+	it("fills the panel with personas when only one model is available, and fails with none", async () => {
 		const llm = new FakeLlm(responder());
 		llm.unavailable.add("p/b").add("p/c");
-		await expect(runBrainstorm("q", config, { llm })).rejects.toThrow(/Only 1 panelist/);
+		const report = await runBrainstorm("q", { ...config, fallbackPersonas: ["a skeptic"] }, { llm });
+		expect(report.panel.map((p) => [p.id, p.model, p.persona])).toEqual([
+			["a", "p/a", undefined],
+			["a-alt1", "p/a", "a skeptic"],
+		]);
+		expect(report.skipped.some((s) => s.id === "diversity")).toBe(true);
+		llm.unavailable.add("p/a");
+		await expect(runBrainstorm("q", config, { llm })).rejects.toThrow(/Only 0 panelist/);
 	});
 
 	it("falls back to the next orchestrator model", async () => {

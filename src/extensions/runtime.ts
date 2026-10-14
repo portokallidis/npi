@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { CONFIG_DIR_NAME, type ExtensionContext, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { type AgentDef, loadAgentDefs } from "../core/agents.ts";
 import { ArtifactStore } from "../core/artifacts.ts";
+import { BenchRecorder } from "../core/bench.ts";
 import { HARNESS_ROOT, type HarnessConfig, loadHarnessConfig } from "../core/config.ts";
 import { type Llm, registryLlm } from "../core/llm.ts";
 import { createSessionRunner, type SubagentRunner } from "../core/subagent.ts";
@@ -14,6 +15,8 @@ export interface HarnessRuntime {
 	runner: SubagentRunner;
 	/** One artifact folder per session run: full subagent reports, offloaded tool output, panel answers. */
 	artifacts: ArtifactStore;
+	/** Per-call benchmarks (time, TTFT, tokens/s per model and device); undefined when telemetry is off. */
+	bench?: BenchRecorder;
 	/** Packaged agents, then ~/.harness/agent/agents, then the trusted project's .pi/agents. */
 	agents(): Map<string, AgentDef>;
 }
@@ -21,7 +24,9 @@ export interface HarnessRuntime {
 export function createRuntime(ctx: ExtensionContext): HarnessRuntime {
 	const agentDir = getAgentDir();
 	const config = loadHarnessConfig(agentDir);
-	const llm = registryLlm(ctx.modelRegistry);
+	// One benchmark file per day; every harness model call (classifier, digests, pipelines) is timed.
+	const bench = config.telemetry.enabled ? new BenchRecorder(join(agentDir, config.telemetry.dir, "bench"), new Date().toISOString().slice(0, 10)) : undefined;
+	const llm = registryLlm(ctx.modelRegistry, bench?.observe);
 	const artifacts = new ArtifactStore(ctx.cwd, config.context.artifactDir);
 	const runner = createSessionRunner({
 		cwd: ctx.cwd,
@@ -41,6 +46,7 @@ export function createRuntime(ctx: ExtensionContext): HarnessRuntime {
 		llm,
 		runner,
 		artifacts,
+		bench,
 		agents: () =>
 			loadAgentDefs([
 				join(HARNESS_ROOT, "agents"),

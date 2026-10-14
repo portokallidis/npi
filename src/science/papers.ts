@@ -185,29 +185,51 @@ export interface SearchLogEntry {
 }
 
 /** Run every query on every source (in parallel), log each search for reproducibility, then de-duplicate. */
+/** Minimum gap between requests to one database (their public rate limits, without keys). */
+const MIN_GAP_MS: Record<PaperSourceName, number> = { openalex: 150, semanticscholar: 1100, pubmed: 400, arxiv: 3000 };
+const RETRIES = 2;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Run every query on every source, log each search for reproducibility, then de-duplicate.
+ * Sources run in parallel; queries to the same source run one after another with its rate-limit gap,
+ * and HTTP 429/503 responses are retried with backoff.
+ */
 export async function searchAll(
 	queries: readonly string[],
 	sources: readonly PaperSourceName[],
-	options: { perQuery: number; fromYear?: number; signal?: AbortSignal; impl?: typeof SOURCES },
+	options: { perQuery: number; fromYear?: number; signal?: AbortSignal; impl?: typeof SOURCES; gapMs?: Partial<Record<PaperSourceName, number>> },
 ): Promise<{ papers: Paper[]; identified: number; duplicates: number; log: SearchLogEntry[] }> {
 	const impl = options.impl ?? SOURCES;
 	const log: SearchLogEntry[] = [];
-	const batches = await Promise.all(
-		queries.flatMap((query) =>
-			sources.map(async (source) => {
+	const perSource = await Promise.all(
+		sources.map(async (source) => {
+			const gap = options.gapMs?.[source] ?? MIN_GAP_MS[source];
+			const found: Raw[][] = [];
+			for (const [i, query] of queries.entries()) {
+				if (i > 0) await sleep(gap);
 				const at = new Date().toISOString();
-				try {
-					const found = await impl[source](query, options.perQuery, options.fromYear, options.signal);
-					log.push({ source, query, found: found.length, at });
-					return found;
-				} catch (error) {
-					log.push({ source, query, found: 0, error: (error as Error).message, at });
-					return [];
+				for (let attempt = 0; ; attempt++) {
+					try {
+						const results = await impl[source](query, options.perQuery, options.fromYear, options.signal);
+						log.push({ source, query, found: results.length, at });
+						found.push(results);
+						break;
+					} catch (error) {
+						const message = (error as Error).message;
+						if (attempt < RETRIES && /HTTP (429|503)/.test(message) && !options.signal?.aborted) {
+							await sleep(gap * 2 ** (attempt + 1) + 500);
+							continue;
+						}
+						log.push({ source, query, found: 0, error: message, at });
+						break;
+					}
 				}
-			}),
-		),
+			}
+			return found.flat();
+		}),
 	);
-	const raws = batches.flat();
+	const raws = perSource.flat();
 	const { papers, duplicates } = dedupe(raws);
 	return { papers, identified: raws.length, duplicates, log };
 }

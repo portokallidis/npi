@@ -60,7 +60,7 @@ Rule: when a new use case needs a new capability, add it to that use case's prof
   6. Resolve contradictions using methodology quality, recency and replication, with the judge plus a methods critic.
   7. Synthesize: a graded summary (e.g. a GRADE-like strong / moderate / weak / insufficient), open questions, and suggested next experiments.
 - **MCP / tools (lazy, this profile only):** paper search and metadata (arXiv, PubMed/Europe PMC, Semantic Scholar, OpenAlex, Crossref), full-text fetch and PDF extraction (pi-web-access already handles PDFs), optional Zotero export.
-- **Agents:** `literature-scout` (search and screen), `paper-reader` (structured extraction, summary only, full notes as an artifact), `methods-critic` (bias, power, confounders), `statistician` (re-checks the numbers).
+- **Agents** (planned, not implemented; the pipeline uses direct model calls plus the `researcher` agent): `literature-scout` (search and screen), `paper-reader` (structured extraction, summary only, full notes as an artifact), `methods-critic` (bias, power, confounders), `statistician` (re-checks the numbers).
 - **Skills:** literature-review protocol, citation formatting (BibTeX/CSL), evidence grading rubric.
 - **Output:** a report with an evidence table (paper, design, n, effect, quality, supports/contradicts), BibTeX file, and every claim citing its source; full extractions kept in artifacts.
 - **Models:** a top frontier model as orchestrator; long-context models for paper reading; local models allowed for screening to save cost.
@@ -76,7 +76,7 @@ Prefer pi's shipped example extensions or MCP servers, scoped to a mode, over ne
 | 1 | Approval gates for risky tools | Per-mode policy via pi's `permission-gate` / `confirm-destructive` / `protected-paths` examples, using MCP tool annotations; browse mode asks before submits | Codex, Cline, Crush, deepagents |
 | 2 | Sandbox for shell/file tools | pi `containerization.md` options (Docker Sandboxes, Gondolin micro-VM) for the `code` mode; an "auto" mode is allowed only when sandboxed | Codex, Gemini, OpenHands |
 | 3 | Plan mode | A `plan` route: read-only tools plus pi's `plan-mode` and `todo` examples; then hand off to `code` | opencode, Cline, Kilo, Qwen |
-| 4 | **Handoff** to another model, agent or session | Adopt pi's `handoff.ts` and add `/handoff [--model m] [--agent a] goal`. It writes the prompt to an artifact plus the worktree path, so Claude Code/Codex/another pi can pick it up. `/model` already moves context across providers | Amp, Paseo, pi example |
+| 4 | **Handoff** to another model, agent or session | Adopt pi's `handoff.ts`. Done: `/handoff [--to mode\|provider/model\|claude\|codex\|…] goal`. It writes the prompt to an artifact plus the worktree path, so Claude Code/Codex/another pi can pick it up. `/model` already moves context across providers | Amp, Paseo, pi example |
 | 5 | File checkpoints / undo | pi's `git-checkpoint` example (one commit per turn, rewind with `/tree`) | opencode, Cline, Gemini |
 | 6 | Worktree isolation for parallel coding subagents | `coder` runs in `git worktree add`; results merged or reviewed | Codex, Qwen, oh-my-pi, Orca |
 | 7 | Tracing and evals | pi-telemetry spans (route decision, model, tokens, cost, subagent tree) to JSONL/OTel; a small eval set to tune router keywords, thresholds and model chains | Gemini, PydanticAI, Agents SDK |

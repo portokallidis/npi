@@ -103,8 +103,10 @@ export async function runScience(prompt: string, config: ScienceConfig, deps: Sc
 	const available: string[] = [];
 	for (const m of config.screeners) if (await llm.available(m)) available.push(m);
 	const first = available[0];
-	const second = available.find((m) => m.split("/")[0] !== first?.split("/")[0]) ?? available[1];
-	if (!first || !second) throw new Error(`Need two available screener models (tried ${config.screeners.join(", ")})`);
+	if (!first) throw new Error(`No screener model available (tried ${config.screeners.join(", ")})`);
+	// With a single available model, the second reviewer is the same model with a stricter brief (κ then
+	// measures self-consistency, not inter-model agreement — the report says so).
+	const second = available.find((m) => m.split("/")[0] !== first.split("/")[0]) ?? available[1] ?? first;
 	const orchestratorTokens = 8000;
 
 	phase("Understanding the question");
@@ -166,25 +168,30 @@ export async function runScience(prompt: string, config: ScienceConfig, deps: Sc
 		report.prisma = { ...report.prisma, identified: found.identified, duplicates: found.duplicates, retracted: retracted.length, noAbstract: noAbstract.length, screened: candidates.length };
 
 		phase(`Screening ${candidates.length} papers with two models`);
-		const screenWith = async (model: string, papers: Paper[], label: string) => {
+		const screenWith = async (model: string, papers: Paper[], label: string, brief = "") => {
 			const batches = Array.from({ length: Math.ceil(papers.length / 12) }, (_, i) => papers.slice(i * 12, i * 12 + 12));
 			const out = await mapPool(batches, 3, (batch) =>
 				callStructured(llm, budget, {
 					model,
 					label,
 					system: SCIENTIST,
-					prompt: `Screen these records against the protocol. Decide from title and abstract only. When unsure, include.\n\n${protocolText(protocol)}\n\nRecords:\n\n${batch.map(paperLine).join("\n\n")}`,
+					prompt: `Screen these records against the protocol. Decide from title and abstract only. When unsure, include.${brief}\n\n${protocolText(protocol)}\n\nRecords:\n\n${batch.map(paperLine).join("\n\n")}`,
 					schema: ScreenSchema,
 					toolName: "submit_screening",
 					toolDescription: "Submit an include/exclude decision for every record.",
 					maxTokens: 3000,
 					signal,
+				}).catch((error) => {
+					// A failed batch must not sink the review: keep its records (screening errs towards inclusion).
+					if (error instanceof BudgetExceededError) throw error;
+					phase(`Screening batch failed on ${model} (${(error as Error).message.slice(0, 80)}); keeping those records`);
+					return { decisions: batch.map((p) => ({ id: p.id, include: true, reason: "screening failed; kept" })) };
 				}),
 			);
 			return new Map(out.flatMap((o) => o.decisions).map((d) => [d.id, d]));
 		};
 		const screen: ScreenResult = await step("screen", async () => {
-			const [a, b] = await Promise.all([screenWith(first, candidates, "science:screen-a"), screenWith(second, candidates, "science:screen-b")]);
+			const [a, b] = await Promise.all([screenWith(first, candidates, "science:screen-a"), screenWith(second, candidates, "science:screen-b", second === first ? " You are the second, independent reviewer: apply every exclusion criterion strictly." : "")]);
 			const ids = candidates.map((p) => p.id);
 			const va = ids.map((id) => a.get(id)?.include ?? true);
 			const vb = ids.map((id) => b.get(id)?.include ?? true);
@@ -218,7 +225,11 @@ export async function runScience(prompt: string, config: ScienceConfig, deps: Sc
 						toolDescription: "Submit the structured extraction.",
 						maxTokens: 2000,
 						signal,
-					}).catch(() => undefined);
+					}).catch((error) => {
+						if (error instanceof BudgetExceededError) throw error;
+						phase(`Extraction failed for ${p.id} (${(error as Error).message.slice(0, 80)}); skipping it`);
+						return undefined;
+					});
 					return x ? { ...x, id: p.id, quoteVerified: quoteInAbstract(x.quote, p.abstract) } : undefined;
 				}),
 			)

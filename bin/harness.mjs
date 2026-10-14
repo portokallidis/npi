@@ -100,7 +100,18 @@ async function doctor() {
 	console.log(`agent dir            ${existsSync(AGENT_DIR) ? AGENT_DIR : "not initialised (run: harness init)"}`);
 }
 
-const args = process.argv.slice(2);
+// Git Bash (MSYS) rewrites "/command" arguments into Windows paths ("C:/Program Files/Git/command");
+// undo that so `harness -p "/stats"` works the same in every shell.
+const toSlash = (p) => p.replaceAll("\\", "/");
+const msysRoot = process.env.MSYSTEM
+	? toSlash(process.env.EXEPATH ?? "C:/Program Files/Git").replace(/\/bin\/?$/i, "").toLowerCase()
+	: undefined;
+const args = process.argv.slice(2).map((a) => {
+	if (!msysRoot) return a;
+	const norm = toSlash(a);
+	const rest = norm.slice(msysRoot.length + 1);
+	return norm.toLowerCase().startsWith(`${msysRoot}/`) && rest && !rest.includes("/") ? `/${rest}` : a;
+});
 if (args[0] === "init") {
 	init(args.includes("--force"));
 } else if (args[0] === "doctor") {

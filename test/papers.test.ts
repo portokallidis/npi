@@ -54,9 +54,25 @@ describe("papers", () => {
 			},
 			arxiv: async () => parseArxivAtom(arxiv),
 		};
-		const r = await searchAll(["exercise depression"], ["openalex", "semanticscholar", "pubmed", "arxiv"], { perQuery: 5, impl });
+		const gapMs = { openalex: 0, semanticscholar: 0, pubmed: 0, arxiv: 0 };
+		const r = await searchAll(["exercise depression"], ["openalex", "semanticscholar", "pubmed", "arxiv"], { perQuery: 5, impl, gapMs });
 		expect(r.identified).toBe(4);
 		expect(r.papers).toHaveLength(3);
 		expect(r.log.find((l) => l.source === "pubmed")).toMatchObject({ found: 0, error: "HTTP 429" });
+	});
+
+	it("retries rate-limited requests and spaces queries per source", async () => {
+		let calls = 0;
+		const flaky = async () => {
+			if (++calls === 1) throw new Error("api: HTTP 429");
+			return parseArxivAtom(arxiv);
+		};
+		const impl = { openalex: flaky, semanticscholar: flaky, pubmed: flaky, arxiv: flaky };
+		const r = await searchAll(["q1", "q2"], ["pubmed"], { perQuery: 5, impl, gapMs: { pubmed: 1 } });
+		expect(calls).toBe(3);
+		expect(r.log.map((l) => [l.query, l.found, l.error])).toEqual([
+			["q1", 1, undefined],
+			["q2", 1, undefined],
+		]);
 	});
 });
