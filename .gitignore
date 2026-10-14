@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Harness runtime output (artifacts, brainstorm reports, offloaded tool output, worktrees, traces)
+.harness/
+
+# Local agent / editor state
+.pi/
+.claude/
+.vscode/
+.idea/
+*.swp
+
+# Secrets — never commit (keys go in env vars or ~/.harness/agent/auth.json)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+auth.json
+mcp-auth.json
+web-search.json
+
+# Build / test / package output
+dist/
+coverage/
+*.tsbuildinfo
+*.tgz
+
+# Logs and OS noise
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# SearXNG writes runtime files into its mounted config dir; keep only our settings
+docker/searxng/*
+!docker/searxng/settings.yml

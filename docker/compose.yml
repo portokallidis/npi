@@ -1,0 +1,33 @@
+# Supporting services for the harness.
+#   docker compose -f docker/compose.yml up -d                   # Playwright MCP only
+#   docker compose -f docker/compose.yml --profile search up -d  # + self-hosted SearXNG
+name: harness
+
+services:
+  playwright-mcp:
+    image: mcr.microsoft.com/playwright/mcp:latest
+    # Streamable HTTP MCP endpoint at http://localhost:8931/mcp (matches config/mcp.json).
+    # Official long-lived recipe from the @playwright/mcp README. --allowed-hosts lets the
+    # host reach it via localhost; --isolated keeps each MCP session's browser profile in memory.
+    entrypoint: ["node", "/app/cli.js"]
+    command: ["--headless", "--browser", "chromium", "--no-sandbox", "--host", "0.0.0.0", "--port", "8931", "--allowed-hosts", "*", "--isolated"]
+    ports:
+      - "127.0.0.1:8931:8931"
+    shm_size: "1gb"
+    init: true
+    restart: unless-stopped
+
+  searxng:
+    # Optional private meta-search. pi-web-access tries it first when `searxngBaseUrl`
+    # is set in ~/.harness/agent/web-search.json (see README).
+    profiles: ["search"]
+    image: searxng/searxng:latest
+    ports:
+      - "127.0.0.1:8888:8080"
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8888/
+      # Set SEARXNG_SECRET in your shell or a local .env file (git-ignored).
+      - SEARXNG_SECRET=${SEARXNG_SECRET:-local-only-set-SEARXNG_SECRET}
+    volumes:
+      - ./searxng:/etc/searxng
+    restart: unless-stopped

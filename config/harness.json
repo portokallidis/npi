@@ -1,0 +1,287 @@
+{
+  "$comment": "Harness config. Model refs are 'provider/model-id' (e.g. 'openrouter/z-ai/glm-5.3', 'ollama/qwen3.6:27b'). Copied to ~/.harness/agent/harness.json by `harness init`; edit that copy.",
+  "router": {
+    "classifierModels": [
+      "ollama/qwen3.6:4b",
+      "anthropic/claude-haiku-5-5",
+      "openrouter/qwen/qwen3.8-flash"
+    ],
+    "classifierTimeoutMs": 2500,
+    "minConfidence": 0.55,
+    "defaultRoute": "chat",
+    "alwaysTools": [
+      "read",
+      "tool_search",
+      "delegate"
+    ]
+  },
+  "routes": {
+    "chat": {
+      "description": "General questions, explanations, writing, small talk. No tools needed beyond reading files.",
+      "models": [
+        "anthropic/claude-sonnet-5-5",
+        "openai/gpt-5.6-terra",
+        "ollama/qwen3.6:27b"
+      ],
+      "thinking": "low",
+      "tools": [],
+      "keywords": [],
+      "skills": []
+    },
+    "code": {
+      "description": "Reading, writing, debugging, refactoring or testing code in the current project; running shell commands.",
+      "models": [
+        "anthropic/claude-opus-5-5",
+        "openai/gpt-6.1-sol",
+        "ollama/qwen3.6:27b"
+      ],
+      "thinking": "medium",
+      "tools": [
+        "bash",
+        "edit",
+        "write",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "keywords": [
+        "\\bfix\\b",
+        "\\bbug\\b",
+        "refactor",
+        "implement",
+        "\\btests?\\b",
+        "stack ?trace",
+        "compil(e|ation) (error|fail)",
+        "build (error|fail)",
+        "\\.(ts|js|py|go|rs|java|cs)\\b",
+        "function",
+        "repo"
+      ],
+      "agents": [
+        "scout",
+        "coder"
+      ]
+    },
+    "research": {
+      "description": "Questions needing current or external information: news, docs, versions, prices, facts to look up and cite.",
+      "models": [
+        "anthropic/claude-sonnet-5-5",
+        "google/gemini-3.1-pro-preview",
+        "ollama/qwen3.6:27b"
+      ],
+      "thinking": "medium",
+      "tools": [
+        "web_search",
+        "fetch_content",
+        "get_search_content"
+      ],
+      "keywords": [
+        "latest",
+        "news",
+        "look up",
+        "search (for|the web)",
+        "sources?",
+        "cite",
+        "current(ly)?",
+        "release notes",
+        "what'?s new"
+      ],
+      "prompt": "Ground factual claims in sources you fetched. Cite URLs inline.",
+      "mcp": [
+        "playwright"
+      ],
+      "agents": [
+        "researcher",
+        "browser"
+      ]
+    },
+    "browse": {
+      "description": "Interacting with a specific website: open a URL, click, fill forms, take screenshots, read a page that needs JavaScript.",
+      "models": [
+        "anthropic/claude-sonnet-5-5",
+        "openai/gpt-5.6-terra"
+      ],
+      "thinking": "low",
+      "tools": [
+        "web_search",
+        "fetch_content"
+      ],
+      "promote": [
+        "mcp__playwright__browser_navigate",
+        "mcp__playwright__browser_snapshot",
+        "mcp__playwright__browser_click",
+        "mcp__playwright__browser_type",
+        "mcp__playwright__browser_take_screenshot"
+      ],
+      "keywords": [
+        "https?://",
+        "\\bopen (the )?(site|page|url)",
+        "\\bclick\\b",
+        "browse",
+        "screenshot",
+        "navigate to",
+        "fill (in|out) the form"
+      ],
+      "prompt": "Use the Playwright browser tools (mcp__playwright__*) for pages that need interaction or JavaScript. Use tool_search to load other browser tools if needed.",
+      "mcp": [
+        "playwright"
+      ],
+      "agents": [
+        "browser",
+        "researcher"
+      ]
+    },
+    "brainstorm": {
+      "description": "Abstract or open-ended goals where the options should be explored: brainstorming, choosing an approach, decisions with trade-offs, strategy, second opinions.",
+      "models": [
+        "anthropic/claude-fable-5-1",
+        "anthropic/claude-opus-5-5",
+        "openai/gpt-6.1-sol"
+      ],
+      "thinking": "medium",
+      "tools": [
+        "brainstorm"
+      ],
+      "keywords": [
+        "brainstorm",
+        "debate",
+        "second opinion",
+        "pros and cons",
+        "\\bpanel\\b",
+        "should (i|we)\\b",
+        "trade-?offs?",
+        "ground truth"
+      ],
+      "prompt": "For abstract goals or decisions, call the `brainstorm` tool with the user's goal and all relevant context; it asks the user for direction, explores every pathway with a multi-model panel and returns the options with trade-offs. Present its report; do not redo the work.",
+      "skills": [],
+      "agents": [
+        "researcher"
+      ]
+    }
+  },
+  "mcpServers": {
+    "playwright": {
+      "url": "http://localhost:8931/mcp",
+      "description": "Real Chromium browser: navigate pages, click, type, read the accessibility snapshot, take screenshots.",
+      "exposure": "deferred",
+      "timeout": 120
+    }
+  },
+  "guard": {
+    "defaultPolicy": "ask",
+    "protectedPaths": [
+      ".env",
+      "**/.env",
+      "**/.env.*",
+      ".git/**",
+      "**/*.pem",
+      "**/*.key",
+      "**/id_rsa*",
+      "**/id_ed25519*",
+      "~/.ssh/**",
+      "~/.aws/**",
+      "~/.harness/agent/auth.json",
+      "~/.harness/agent/mcp-auth.json"
+    ],
+    "askCommands": [
+      "\\brm\\s+-[a-z]*[rf]",
+      "\\bgit\\s+(push|reset\\s+--hard|clean|checkout\\s+--|rebase|branch\\s+-D)",
+      "\\bsudo\\b",
+      "\\b(curl|wget)\\b[^|]*\\|\\s*(sh|bash)",
+      "\\b(mkfs|dd|shutdown|reboot)\\b",
+      "\\bchmod\\s+-R\\b",
+      "\\b(npm|pnpm|yarn)\\s+publish\\b",
+      "\\bdocker\\s+(rm|rmi|system\\s+prune)\\b",
+      "\\bdrop\\s+(table|database)\\b",
+      "\\bkill(all)?\\b"
+    ],
+    "readonlyCommands": [
+      "^\\s*(ls|cat|head|tail|wc|pwd|tree|file|stat|du|which|echo)\\b",
+      "^\\s*(grep|rg|find|fd)\\b",
+      "^\\s*git\\s+(status|log|diff|show|blame|branch|ls-files|grep)\\b",
+      "^\\s*(npm|pnpm|yarn)\\s+(ls|list|view|outdated)\\b",
+      "^\\s*(node|python3?)\\s+--version\\b"
+    ],
+    "readonlyTools": [
+      "read",
+      "grep",
+      "find",
+      "ls",
+      "tool_search",
+      "web_search",
+      "fetch_content",
+      "get_search_content",
+      "delegate",
+      "todo",
+      "recall",
+      "papers",
+      "brainstorm"
+    ],
+    "askTools": [
+      "browser_(fill_form|file_upload|run_code|evaluate|drop)",
+      "_(submit|send|post|delete|purchase|pay)"
+    ],
+    "sandboxImage": "node:22-bookworm",
+    "sandboxNetwork": "bridge"
+  },
+  "context": {
+    "artifactDir": ".harness/artifacts",
+    "toolResultInlineChars": 12000,
+    "toolResultPreviewChars": 2500,
+    "subagentContextTokens": 60000,
+    "subagentSummaryTokens": 500
+  },
+  "subagents": {
+    "maxConcurrency": 4,
+    "maxParallelTasks": 8,
+    "timeoutMs": 600000
+  },
+  "brainstorm": {
+    "orchestrator": [
+      "anthropic/claude-fable-5-1",
+      "anthropic/claude-opus-5-5",
+      "openai/gpt-6.1-sol"
+    ],
+    "panel": [
+      {
+        "id": "claude",
+        "model": "anthropic/claude-opus-5-5",
+        "thinking": "medium"
+      },
+      {
+        "id": "gpt",
+        "model": "openai/gpt-6.1-sol",
+        "thinking": "medium"
+      },
+      {
+        "id": "gemini",
+        "model": "google/gemini-3.1-pro-preview",
+        "thinking": "medium"
+      },
+      {
+        "id": "local",
+        "model": "ollama/qwen3.6:27b"
+      }
+    ],
+    "minPanelists": 2,
+    "judge": [
+      "openrouter/z-ai/glm-5.3",
+      "anthropic/claude-sonnet-5-5",
+      "ollama/qwen3.6:27b"
+    ],
+    "evidenceAgent": "researcher",
+    "maxDirectionQuestions": 4,
+    "maxPathwaysPerPanelist": 6,
+    "maxDisputes": 6,
+    "crossExamRounds": 2,
+    "recommendThreshold": 0.6,
+    "askUser": true,
+    "maxCostUSD": 5,
+    "callTimeoutMs": 240000,
+    "maxOutputTokens": {
+      "panelist": 4000,
+      "orchestrator": 8000
+    },
+    "reportDir": ".harness/brainstorms"
+  }
+}

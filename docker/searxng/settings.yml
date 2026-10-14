@@ -1,0 +1,10 @@
+use_default_settings: true
+server:
+  # secret_key comes from the SEARXNG_SECRET env var (see docker/compose.yml).
+  limiter: false
+  image_proxy: false
+search:
+  # pi-web-access needs the JSON API.
+  formats:
+    - html
+    - json

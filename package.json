@@ -1,0 +1,44 @@
+{
+  "name": "harness",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A routing, multi-agent harness built on pi: lazy tools, subagents, local + frontier models, and a brainstorm panel that resolves disagreements between models.",
+  "type": "module",
+  "bin": {
+    "harness": "bin/harness.mjs"
+  },
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/extensions/context/index.ts",
+      "./src/extensions/router/index.ts",
+      "./src/extensions/subagents/index.ts",
+      "./src/extensions/brainstorm/index.ts"
+    ]
+  },
+  "scripts": {
+    "start": "node bin/harness.mjs",
+    "init": "node bin/harness.mjs init",
+    "test": "vitest --run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-agent-core": "^1.2.0",
+    "@earendil-works/pi-ai": "^1.2.0",
+    "@earendil-works/pi-coding-agent": "1.2.0",
+    "@earendil-works/pi-tui": "^1.2.0",
+    "@types/node": "^26.6.5",
+    "typebox": "1.3.27",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  }
+}
