@@ -32,7 +32,7 @@ Rule: when a use case needs a new capability, add it to that profile or mode and
 - Guard hardening: chained shell commands, `find -delete/-exec`, `git branch -D`, protected paths in shell commands, no powershell on sandboxed modes.
 
 **Next**
-- A sub-second decision model. The 9B and 27B local classifiers are accurate but take about 5–6 s; candidates are a 1–2B instruct model or an encoder behind `router.classifierEndpoint`, measured with demo 12.
+- A sub-second decision model. The 9B and 27B local classifiers are accurate but take ~3–5 s. Intern-Decision-0.8B (`scripts/decision-server.py`) scores 24/30 tiers at ~10 s on the laptop CPU; next, try it on a GPU (model card: ~34 ms), or serve its GGUF build through llama.cpp logprobs.
 - Guardrails against prompt injection in fetched pages and papers: a classifier pass on tool results in `browse`, `research` and `science`.
 - Science: full-text reading of open-access PDFs; contradiction search; a novelty check for idea generation.
 - Browser action caching (Stagehand-style) and a domain allowlist for `browse`.

@@ -96,6 +96,21 @@ describe("router", () => {
 		const fallback = async () => ({ route: "chat", confidence: 1 });
 		expect(await httpClassifier("http://x", config, fakeFetch)("hi there friend")).toEqual({ route: "code", confidence: 0.8, tier: "light" });
 		expect(await chainClassifiers(httpClassifier("http://x", config, down), fallback)("hi there friend")).toEqual({ route: "chat", confidence: 1 });
+
+		// A failing endpoint is skipped for 5 minutes, then tried again.
+		let clock = 0;
+		let hits = 0;
+		const flaky = (async () => {
+			hits++;
+			throw new Error("timeout");
+		}) as typeof fetch;
+		const backoff = httpClassifier("http://x", config, flaky, () => clock);
+		await backoff("a b c d");
+		await backoff("a b c d");
+		expect(hits).toBe(1);
+		clock = 5 * 60_000 + 1;
+		await backoff("a b c d");
+		expect(hits).toBe(2);
 	});
 
 	it("declares only registered tools for a route", () => {

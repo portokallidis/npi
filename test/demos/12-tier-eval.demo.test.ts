@@ -1,7 +1,7 @@
 // Demo 12 — Decision-model eval (quick). Rates the effort tier (light / standard / heavy) of the labelled
-// prompts in test/evals/tier-cases.json with each candidate decision model, and reports tier accuracy,
-// light↔heavy confusions (the costly mistakes) and latency. Use it to pick `router.classifierModels` or a
-// `router.classifierEndpoint` on your own hardware:
+// prompts in test/evals/tier-cases.json and the route of test/evals/router-cases.json with each candidate
+// decision model, and reports tier and route accuracy, light↔heavy confusions (the costly mistakes) and
+// latency. Use it to pick `router.classifierModels` or a `router.classifierEndpoint` on your own hardware:
 //   NPI_EVAL_CLASSIFIER_MODEL=lmstudio/qwen/qwen3.5-9b,ollama/qwen3:1.7b  (comma list; default local/small, local/large)
 //   NPI_EVAL_CLASSIFIER_ENDPOINT=http://localhost:8090/route             (encoder router behind HTTP)
 import { readFileSync } from "node:fs";
@@ -10,6 +10,7 @@ import { type Classifier, httpClassifier, llmClassifier } from "../../src/core/r
 import { banner, bench, config, demo } from "./common.ts";
 
 const cases: { prompt: string; tier: "light" | "standard" | "heavy" }[] = JSON.parse(readFileSync(new URL("../evals/tier-cases.json", import.meta.url), "utf8"));
+const routeCases: { prompt: string; route: string | null }[] = JSON.parse(readFileSync(new URL("../evals/router-cases.json", import.meta.url), "utf8"));
 const ORDER = ["light", "standard", "heavy"];
 
 const candidates: { name: string; make: () => Promise<Classifier | undefined> }[] = [
@@ -22,7 +23,7 @@ const candidates: { name: string; make: () => Promise<Classifier | undefined> }[
 		},
 	})),
 	...(process.env.NPI_EVAL_CLASSIFIER_ENDPOINT
-		? [{ name: process.env.NPI_EVAL_CLASSIFIER_ENDPOINT, make: async () => httpClassifier(process.env.NPI_EVAL_CLASSIFIER_ENDPOINT as string, config) }]
+		? [{ name: process.env.NPI_EVAL_CLASSIFIER_ENDPOINT, make: async () => httpClassifier(process.env.NPI_EVAL_CLASSIFIER_ENDPOINT as string, { ...config, router: { ...config.router, classifierTimeoutMs: 120_000 } }) }]
 		: []),
 ];
 
@@ -49,19 +50,30 @@ for (const candidate of candidates) {
 				else misses.push(`${c.tier} → ${got ?? "none"}: ${c.prompt}`);
 				if (got && Math.abs(ORDER.indexOf(got) - ORDER.indexOf(c.tier)) === 2) severe++;
 			}
+			// Route accuracy on the labelled router prompts, scored on the raw classifier (no keyword shortcut).
+			let routeCorrect = 0;
+			const labelled = routeCases.filter((c) => c.route);
+			const routeMisses: string[] = [];
+			for (const c of labelled) {
+				const r = await classify(c.prompt);
+				if (r?.route === c.route) routeCorrect++;
+				else routeMisses.push(`${c.route} → ${r?.route ?? "none"}: ${c.prompt}`);
+			}
 			times.sort((a, b) => a - b);
 			const p50 = (times[times.length >> 1] ?? 0) / 1000;
 			const p90 = (times[Math.floor(times.length * 0.9)] ?? 0) / 1000;
 			Object.assign(metrics, {
 				"tier accuracy": `${correct}/${cases.length}`,
+				"route accuracy": `${routeCorrect}/${labelled.length}`,
 				"light↔heavy": severe,
 				"no answer": none,
 				"p50 s": p50.toFixed(2),
 				"p90 s": p90.toFixed(2),
 			});
-			banner(`Tier eval with ${candidate.name}: ${correct}/${cases.length} correct, ${severe} light↔heavy, ${none} no answer, p50 ${p50.toFixed(2)}s p90 ${p90.toFixed(2)}s`, [
+			banner(`Tier eval with ${candidate.name}: tier ${correct}/${cases.length}, route ${routeCorrect}/${labelled.length}, ${severe} light↔heavy, ${none} no answer, p50 ${p50.toFixed(2)}s p90 ${p90.toFixed(2)}s`, [
 				`Confusion: ${[...confusion].sort().map(([k, v]) => `${k} ${v}`).join(" · ")}`,
-				...(misses.length ? ["Misses:", ...misses] : ["No misses."]),
+				...(misses.length ? ["Tier misses:", ...misses] : ["No tier misses."]),
+				...(routeMisses.length ? ["Route misses:", ...routeMisses] : ["No route misses."]),
 			]);
 		}));
 }

@@ -88,15 +88,15 @@ Measured on two home machines: a Mac running Qwen 3.5 9B in LM Studio ("small") 
 
 | Use case | Result |
 |---|---|
-| Routing (24 labelled prompts) | 24/24 with either model; ~3 s per decision on the small one |
-| Effort tier (30 labelled prompts) | large 30/30, small 26/30, no light↔heavy mix-ups; ~5–6 s per decision |
+| Routing (24 labelled prompts) | large 24/24; small 23–24/24 across runs; ~3 s per decision on the small one, ~5 s on the large |
+| Effort tier (30 labelled prompts) | large 30/30, small 25/30, no light↔heavy mix-ups; Intern-Decision-0.8B on the laptop CPU 24/30 at ~10 s |
 | Pull invoice fields into JSON | 16/16 fields on both models |
-| Shrink a 5k-token log | ~300 tokens, error kept, 3–25 s |
+| Shrink a 5k-token log | ~300 tokens, error kept, 3–33 s |
 | Screen papers against criteria | 6/6 on the small model |
-| Review + fix a buggy commit | Bug found, fixed on its own branch, tests pass (4 min) |
-| Two subagents on two machines | 1.7× faster than one after the other |
+| Review + fix a buggy commit | Bug found, fixed on its own branch, tests pass (4.3 min) |
+| Two subagents on two machines | 1.9× faster than one after the other |
 | Handoff to a new session | Small model kept 3/4 key facts; large kept 4/4 |
-| Brainstorm, literature review | Complete on one local model in 15–20 min |
+| Brainstorm, literature review | Complete on local models in 30–36 min (literature review: κ 0.80 between screeners) |
 
 Each run prints what happened and writes a benchmark report (time, tokens/s and quality per model and device). [Latest numbers](docs/benchmarks.md) · [What each demo shows](test/demos/README.md)
 

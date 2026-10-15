@@ -23,6 +23,7 @@ mcp-auth.json
 web-search.json
 
 # Build / test / package output
+__pycache__/
 dist/
 coverage/
 *.tsbuildinfo

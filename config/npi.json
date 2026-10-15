@@ -52,10 +52,10 @@
       ],
       "keywords": [
         "\\bplan\\b",
-        "how should (i|we) (implement|build|structure|approach)",
+        "how (should (i|we)|to) (implement|build|structure|approach|architect)",
         "design (the|a)\\b",
         "architecture for",
-        "before (we|you) (start|code)"
+        "before (we|you|i) (start|code|write|touch)"
       ],
       "prompt": "Planning mode: you cannot change files. Investigate (read, grep, delegate to scout), then give a concrete numbered plan with files to touch, risks and tests, and record it with the todo tool. Finish by suggesting `/handoff --to code <goal>`.",
       "agents": [

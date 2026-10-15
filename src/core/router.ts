@@ -127,9 +127,16 @@ export function llmClassifier(llm: Llm, config: NpiConfig): Classifier {
  * Classifier behind a plain HTTP endpoint, for encoder models (ModernBERT/GLiNER-style) or any custom router
  * that does not speak chat completions. POST {text, routes:[{name,description}], tiers} -> {route, confidence, tier?}.
  */
-export function httpClassifier(url: string, config: NpiConfig, fetchImpl: typeof fetch = fetch): Classifier {
+export function httpClassifier(url: string, config: NpiConfig, fetchImpl: typeof fetch = fetch, now = () => Date.now()): Classifier {
 	const routes = Object.entries(config.routes).map(([name, r]) => ({ name, description: r.description }));
+	// After a failure or timeout, skip the endpoint for a while so each request doesn't wait it out again.
+	let skipUntil = 0;
+	const backoff = () => {
+		skipUntil = now() + ENDPOINT_BACKOFF_MS;
+		return undefined;
+	};
 	return async (text) => {
+		if (now() < skipUntil) return undefined;
 		try {
 			const res = await fetchImpl(url, {
 				method: "POST",
@@ -137,15 +144,17 @@ export function httpClassifier(url: string, config: NpiConfig, fetchImpl: typeof
 				body: JSON.stringify({ text: text.slice(0, 4000), routes, tiers: TIERS }),
 				signal: AbortSignal.timeout(config.router.classifierTimeoutMs),
 			});
-			if (!res.ok) return undefined;
+			if (!res.ok) return backoff();
 			const body = (await res.json()) as Partial<Classification>;
-			if (typeof body.route !== "string" || typeof body.confidence !== "number") return undefined;
+			if (typeof body.route !== "string" || typeof body.confidence !== "number") return backoff();
 			return { route: body.route, confidence: body.confidence, tier: TIERS.includes(body.tier as Tier) ? body.tier : undefined };
 		} catch {
-			return undefined;
+			return backoff();
 		}
 	};
 }
+
+const ENDPOINT_BACKOFF_MS = 5 * 60_000;
 
 /** First classifier that answers wins (e.g. a fast local endpoint, then a small LLM). */
 export function chainClassifiers(...classifiers: Classifier[]): Classifier {
