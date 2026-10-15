@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { ArtifactStore } from "../../src/core/artifacts.ts";
 import { createSessionRunner } from "../../src/core/subagent.ts";
 
-const agentDir = process.env.HARNESS_AGENT_DIR ?? "";
+const agentDir = process.env.NPI_AGENT_DIR ?? "";
 
 describe.skipIf(!agentDir || !existsSync(join(agentDir, "settings.json")))("subagent context budget", () => {
 	it("steers at the budget and the agent wraps up with a summary", async () => {
@@ -37,8 +37,8 @@ describe.skipIf(!agentDir || !existsSync(join(agentDir, "settings.json")))("suba
 			agentDir,
 			llm: { available: async () => true, complete: async () => Promise.reject(new Error("unused")) },
 			fallbackModels: () => [],
-			guard: JSON.parse(readFileSync(new URL("../../config/harness.json", import.meta.url), "utf8")).guard,
-			artifacts: new ArtifactStore(process.cwd(), ".harness/artifacts", "integration"),
+			guard: JSON.parse(readFileSync(new URL("../../config/npi.json", import.meta.url), "utf8")).guard,
+			artifacts: new ArtifactStore(process.cwd(), ".npi/artifacts", "integration"),
 			contextTokens: 10_000, // after one ~5k-token read the context (~13.5k) is between 1x and 1.5x
 			summaryTokens: 100,
 			timeoutMs: 60_000,

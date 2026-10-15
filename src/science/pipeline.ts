@@ -2,7 +2,7 @@ import { askDirections, frame } from "../brainstorm/frame.ts";
 import type { UserChannel } from "../brainstorm/resolve/index.ts";
 import type { BrainstormEvent } from "../brainstorm/types.ts";
 import { Budget, BudgetExceededError } from "../core/budget.ts";
-import type { HarnessConfig } from "../core/config.ts";
+import type { NpiConfig } from "../core/config.ts";
 import { firstAvailable, type Llm } from "../core/llm.ts";
 import { mapPool } from "../core/pool.ts";
 import type { RunState } from "../core/runstate.ts";
@@ -22,7 +22,7 @@ import {
 	VerifySchema,
 } from "./types.ts";
 
-export type ScienceConfig = HarnessConfig["science"];
+export type ScienceConfig = NpiConfig["science"];
 
 export interface ScienceDeps {
 	llm: Llm;

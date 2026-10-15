@@ -7,7 +7,7 @@ import { expect, it } from "vitest";
 import { loadAgentDefs } from "../../src/core/agents.ts";
 import { createSessionRunner } from "../../src/core/subagent.ts";
 import { isLocalUrl, parseModelRef } from "../../src/core/llm.ts";
-import { banner, bench, config, demo, ms, pick } from "./harness.ts";
+import { banner, bench, config, demo, ms, pick } from "./common.ts";
 
 it("quick: scout subagent answers a codebase question with a short summary + artifact", (t) =>
 	bench.run("scout subagent", async (metrics) => {

@@ -16,7 +16,7 @@ const config: ScienceConfig = {
 	maxIncluded: 5,
 	askUser: false,
 	maxCostUSD: 10,
-	reportDir: ".harness/science",
+	reportDir: ".npi/science",
 };
 
 const abstract = (n: number) => `Background: we studied exercise. Methods: randomized trial with ${n} adults. Results: exercise reduced depressive symptoms by 30 percent versus control. Conclusion: exercise helps.`;

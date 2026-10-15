@@ -3,7 +3,7 @@
 // unmatched prompt, so it must be fast, free and private.
 import { expect, it } from "vitest";
 import { decideRoute, llmClassifier, matchKeywords } from "../../src/core/router.ts";
-import { banner, bench, config, demo, ms, pick } from "./harness.ts";
+import { banner, bench, config, demo, ms, pick } from "./common.ts";
 
 const prompts: [string, string][] = [
 	["fix the failing test in parser.test.ts", "code"],

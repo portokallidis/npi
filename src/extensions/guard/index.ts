@@ -3,7 +3,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { decide, type PolicyLevel, sandboxCommand } from "../../core/policy.ts";
 import { runtimeHolder } from "../runtime.ts";
 
-const ROUTE_CHANNEL = "harness:route";
+const ROUTE_CHANNEL = "npi:route";
 const LEVELS: PolicyLevel[] = ["readonly", "ask", "auto"];
 
 /**

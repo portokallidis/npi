@@ -1,11 +1,11 @@
 {
-  "name": "harness",
+  "name": "npi",
   "version": "0.1.0",
   "private": true,
   "description": "A routing, multi-agent harness built on pi: lazy tools, subagents, local + frontier models, and a brainstorm panel that resolves disagreements between models.",
   "type": "module",
   "bin": {
-    "harness": "bin/harness.mjs"
+    "npi": "bin/npi.mjs"
   },
   "keywords": [
     "pi-package"
@@ -25,8 +25,8 @@
     ]
   },
   "scripts": {
-    "start": "node bin/harness.mjs",
-    "init": "node bin/harness.mjs init",
+    "start": "node bin/npi.mjs",
+    "init": "node bin/npi.mjs init",
     "test": "vitest --run",
     "typecheck": "tsc --noEmit",
     "demo": "vitest --run --config vitest.demo.config.ts",

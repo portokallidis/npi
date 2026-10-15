@@ -116,7 +116,7 @@ async function brainstorm(
 export default function brainstormExtension(pi: ExtensionAPI) {
 	const holder = runtimeHolder();
 	pi.on("session_start", () => holder.reset());
-	const emit = (e: unknown) => pi.events.emit("harness:telemetry", e);
+	const emit = (e: unknown) => pi.events.emit("npi:telemetry", e);
 
 	// The user sees the full report; the model's context only gets the digest in `content`.
 	pi.registerMessageRenderer<{ path: string; markdown: string }>(REPORT_TYPE, (message, { outputPad }, theme) => {

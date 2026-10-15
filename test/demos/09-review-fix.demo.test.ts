@@ -6,14 +6,14 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { agents, banner, bench, demo, makeRunner, ms, recordAgent } from "./harness.ts";
+import { agents, banner, bench, demo, makeRunner, ms, recordAgent } from "./common.ts";
 
 function buggyRepo(): string {
 	const dir = mkdtempSync(join(tmpdir(), "npi-shop-"));
 	const git = (...args: string[]) => execFileSync("git", args, { cwd: dir });
 	mkdirSync(join(dir, "src"));
 	writeFileSync(join(dir, "package.json"), '{ "type": "module" }\n');
-	writeFileSync(join(dir, ".gitignore"), ".harness/\n");
+	writeFileSync(join(dir, ".gitignore"), ".npi/\n");
 	writeFileSync(
 		join(dir, "test.js"),
 		`import assert from "node:assert";\nimport { applyDiscount, total } from "./src/cart.js";\nassert.equal(total([{ price: 10, qty: 2 }, { price: 5, qty: 1 }]), 25);\nassert.equal(applyDiscount(100, 15), 85);\nassert.equal(applyDiscount(19.99, 10), 17.99);\nconsole.log("all tests passed");\n`,
@@ -59,7 +59,7 @@ it("review finds the bug, coder fixes it in a worktree, tests pass", (t) =>
 		const fixMs = Date.now() - s2;
 
 		const worktrees = execFileSync("git", ["worktree", "list", "--porcelain"], { cwd: repo }).toString();
-		const worktree = worktrees.split("\n").filter((l) => l.startsWith("worktree ")).map((l) => l.slice(9)).find((p) => p.includes(".harness"));
+		const worktree = worktrees.split("\n").filter((l) => l.startsWith("worktree ")).map((l) => l.slice(9)).find((p) => p.includes(".npi"));
 		let passed = false;
 		let testOut = "";
 		try {

@@ -13,7 +13,7 @@ import {
 import type { AgentDef } from "./agents.ts";
 import { type ArtifactStore, extractSummary } from "./artifacts.ts";
 import { commitAll, diffStat, gitRoot, worktreeAdd } from "./gitsnap.ts";
-import { HARNESS_ROOT } from "./config.ts";
+import { NPI_ROOT } from "./config.ts";
 import { firstAvailable, type Llm, parseModelRef } from "./llm.ts";
 import { decide, type GuardConfig, type PolicyLevel, sandboxCommand } from "./policy.ts";
 import { withTimeout } from "./pool.ts";
@@ -68,13 +68,13 @@ export interface SessionRunnerOptions {
 	summaryTokens: number;
 	timeoutMs: number;
 	guard: GuardConfig;
-	/** Harness MCP catalogue (harness.json `mcpServers`); agents' `mcp` names resolve here, then in mcp.json. */
+	/** npi MCP catalogue (npi.json `mcpServers`); agents' `mcp` names resolve here, then in mcp.json. */
 	mcpCatalogue?: Record<string, unknown>;
 	/** Defaults to a runtime reading the agent dir's models.json and auth (tests inject one). */
 	modelRuntime?: Promise<ModelRuntime>;
 }
 
-const HARNESS_EXTENSIONS_DIR = resolve(HARNESS_ROOT, "src", "extensions").toLowerCase();
+const NPI_EXTENSIONS_DIR = resolve(NPI_ROOT, "src", "extensions").toLowerCase();
 
 export function reportingContract(summaryTokens: number, contextTokens: number): string {
 	return `## Reporting contract
@@ -103,7 +103,7 @@ function mcpConfigFor(agentDir: string, servers: readonly string[], catalogue: R
 
 /**
  * Runs each subagent as an in-memory pi AgentSession in this process: its own model, context window,
- * tool selection and MCP servers, with the user's packages (e.g. pi-web-access) but without the harness
+ * tool selection and MCP servers, with the user's packages (e.g. pi-web-access) but without the npi
  * extensions themselves, so subagents cannot recurse into delegate/brainstorm.
  *
  * Context discipline: the subagent is told its budgets; at its context budget it is steered to wrap up and
@@ -153,7 +153,7 @@ export function createSessionRunner(options: SessionRunnerOptions): SubagentRunn
 					const root = await gitRoot(options.cwd);
 					if (!root) throw new Error(`Agent "${agent.name}" needs a git repository for worktree isolation`);
 					const id = `${agent.name}-${Date.now().toString(36)}`;
-					worktree = { path: join(root, ".harness", "worktrees", id), branch: `harness/${id}` };
+					worktree = { path: join(root, ".npi", "worktrees", id), branch: `npi/${id}` };
 					await worktreeAdd(root, worktree.path, worktree.branch);
 					cwd = worktree.path;
 				}
@@ -184,7 +184,7 @@ export function createSessionRunner(options: SessionRunnerOptions): SubagentRunn
 					extensionsOverride: (base) => ({
 						...base,
 						extensions: base.extensions.filter(
-							(ext) => !resolve(ext.resolvedPath || ext.path).toLowerCase().startsWith(HARNESS_EXTENSIONS_DIR),
+							(ext) => !resolve(ext.resolvedPath || ext.path).toLowerCase().startsWith(NPI_EXTENSIONS_DIR),
 						),
 					}),
 					appendSystemPrompt: [agent.systemPrompt, reportingContract(summaryTokens, contextTokens)].filter(Boolean),

@@ -11,7 +11,7 @@ export type TraceEvent =
 
 export type TraceRecord = TraceEvent & { ts: string; session: string };
 
-export const TELEMETRY_CHANNEL = "harness:telemetry";
+export const TELEMETRY_CHANNEL = "npi:telemetry";
 
 export function traceFile(dir: string, date = new Date()): string {
 	return join(dir, `${date.toISOString().slice(0, 10)}.jsonl`);

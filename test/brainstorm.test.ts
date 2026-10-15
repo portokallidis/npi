@@ -33,7 +33,7 @@ const config: BrainstormConfig = {
 	maxCostUSD: 10,
 	callTimeoutMs: 5000,
 	maxOutputTokens: { panelist: 4000, orchestrator: 8000 },
-	reportDir: ".harness/brainstorms",
+	reportDir: ".npi/brainstorms",
 };
 
 const pathway = (name: string, claim: string) => ({
@@ -144,7 +144,7 @@ const evidenceRunner: SubagentRunner = {
 			agent: req.agent.name,
 			model: "p/research",
 			text: "VERDICT: position 0.\nSOURCES:\n- https://sqlite.org/wal.html — single writer.",
-			artifact: ".harness/artifacts/run/001-researcher.md",
+			artifact: ".npi/artifacts/run/001-researcher.md",
 			usage: { input: 10, output: 10, costUSD: 0.02, turns: 2, peakContextTokens: 10 },
 		};
 	},
@@ -190,7 +190,7 @@ describe("runBrainstorm (explore and decide)", () => {
 		const user = scriptedUser(["5-50", OTHER_OPTION, "FIRST"], "No ops staff at all");
 		const events: BrainstormEvent[] = [];
 		const cwd = mkdtempSync(join(tmpdir(), "bs-"));
-		const artifacts = new ArtifactStore(cwd, ".harness/artifacts", "run");
+		const artifacts = new ArtifactStore(cwd, ".npi/artifacts", "run");
 
 		const report = await runBrainstorm("We need a DB for an internal tool", config, {
 			llm,
@@ -221,7 +221,7 @@ describe("runBrainstorm (explore and decide)", () => {
 
 		// Each dispute kind reached its resolver.
 		const by = (topic: string) => report.resolutions.find((r) => report.map.disputes.find((d) => d.id === r.disputeId)?.topic === topic);
-		expect(by("Write concurrency")).toMatchObject({ method: "evidence", sources: ["https://sqlite.org/wal.html"], artifact: ".harness/artifacts/run/001-researcher.md" });
+		expect(by("Write concurrency")).toMatchObject({ method: "evidence", sources: ["https://sqlite.org/wal.html"], artifact: ".npi/artifacts/run/001-researcher.md" });
 		expect(by("Scaling path")).toMatchObject({ method: "cross-exam", winningPosition: 0 });
 		expect(by("Ops budget")).toMatchObject({ method: "user", verdict: "Avoid servers" });
 		expect(llm.calls.filter((c) => c.request.tools?.[0]?.name === "submit_ruling").every((c) => c.ref === "p/judge")).toBe(true);

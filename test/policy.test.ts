@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import type { HarnessConfig } from "../src/core/config.ts";
+import type { NpiConfig } from "../src/core/config.ts";
 import { decide, isProtected, sandboxCommand } from "../src/core/policy.ts";
 
-const { guard } = JSON.parse(readFileSync(new URL("../config/harness.json", import.meta.url), "utf8")) as HarnessConfig;
+const { guard } = JSON.parse(readFileSync(new URL("../config/npi.json", import.meta.url), "utf8")) as NpiConfig;
 const env = { cwd: "/home/u/proj", home: "/home/u", sandboxed: false };
 const run = (level: "readonly" | "ask" | "auto", tool: string, input: Record<string, unknown>, hints = {}, e = env) =>
 	decide(level, { tool, input, hints }, guard, e).action;

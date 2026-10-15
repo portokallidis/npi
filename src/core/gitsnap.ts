@@ -20,7 +20,7 @@ export async function gitRoot(cwd: string): Promise<string | undefined> {
  */
 export async function snapshot(root: string): Promise<string> {
 	const gitDir = await git(root, ["rev-parse", "--absolute-git-dir"]);
-	const env = { GIT_INDEX_FILE: join(gitDir, "harness-snapshot-index") };
+	const env = { GIT_INDEX_FILE: join(gitDir, "npi-snapshot-index") };
 	await git(root, ["read-tree", "--empty"], env);
 	await git(root, ["add", "-A", "--", "."], env);
 	return git(root, ["write-tree"], env);
@@ -29,7 +29,7 @@ export async function snapshot(root: string): Promise<string> {
 /** Make the working tree match a snapshot: rewrite its files and delete files created since. */
 export async function restore(root: string, tree: string): Promise<{ restored: number; removed: number }> {
 	const gitDir = await git(root, ["rev-parse", "--absolute-git-dir"]);
-	const env = { GIT_INDEX_FILE: join(gitDir, "harness-restore-index") };
+	const env = { GIT_INDEX_FILE: join(gitDir, "npi-restore-index") };
 	const wanted = new Set((await git(root, ["ls-tree", "-r", "--name-only", tree])).split("\n").filter(Boolean));
 	const present = (await git(root, ["ls-files", "-co", "--exclude-standard"])).split("\n").filter(Boolean);
 	let removed = 0;

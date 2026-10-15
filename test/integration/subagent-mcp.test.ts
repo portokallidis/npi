@@ -1,7 +1,7 @@
 // Integration: a real in-process pi subagent session (scripted faux model) that loads the user's
-// packages, filters out the harness extensions, connects only its MCP servers, and drives the
-// Playwright MCP container. Needs `harness init` into HARNESS_AGENT_DIR and the compose stack up.
-//   HARNESS_AGENT_DIR=... npx vitest --run test/integration
+// packages, filters out the npi extensions, connects only its MCP servers, and drives the
+// Playwright MCP container. Needs `npi init` into NPI_AGENT_DIR and the compose stack up.
+//   NPI_AGENT_DIR=... npx vitest --run test/integration
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai/compat";
@@ -11,7 +11,7 @@ import { ArtifactStore } from "../../src/core/artifacts.ts";
 import { describe, expect, it } from "vitest";
 import { createSessionRunner } from "../../src/core/subagent.ts";
 
-const agentDir = process.env.HARNESS_AGENT_DIR ?? "";
+const agentDir = process.env.NPI_AGENT_DIR ?? "";
 const playwrightUp = await fetch("http://localhost:8931/mcp", { signal: AbortSignal.timeout(1000) }).then(
 	() => true,
 	() => false,
@@ -54,9 +54,9 @@ TITLE=${title}`));
 			agentDir,
 			llm: { available: async () => true, complete: async () => Promise.reject(new Error("unused")) },
 			fallbackModels: () => [],
-			guard: JSON.parse(readFileSync(new URL("../../config/harness.json", import.meta.url), "utf8")).guard,
-			artifacts: new ArtifactStore(process.cwd(), ".harness/artifacts", "integration"),
-			mcpCatalogue: JSON.parse(readFileSync(new URL("../../config/harness.json", import.meta.url), "utf8")).mcpServers,
+			guard: JSON.parse(readFileSync(new URL("../../config/npi.json", import.meta.url), "utf8")).guard,
+			artifacts: new ArtifactStore(process.cwd(), ".npi/artifacts", "integration"),
+			mcpCatalogue: JSON.parse(readFileSync(new URL("../../config/npi.json", import.meta.url), "utf8")).mcpServers,
 			contextTokens: 50_000,
 			summaryTokens: 200,
 			timeoutMs: 90_000,
@@ -77,7 +77,7 @@ TITLE=${title}`));
 		expect(full).toMatch(/Long detail that must stay out/);
 		expect(full).toMatch(/- mcp__playwright__browser_navigate \{"url":"https:\/\/example.com"\}/);
 		expect(progress).toContain("browser: mcp__playwright__browser_navigate");
-		// Harness extensions are filtered out of subagents (no recursion); MCP tools are declared directly.
+		// npi extensions are filtered out of subagents (no recursion); MCP tools are declared directly.
 		expect(seenContexts[0]).not.toContain('"delegate"');
 		expect(seenContexts[0]).not.toContain('"brainstorm"');
 		expect(seenContexts[0]).toContain('"mcp__playwright__browser_navigate"');

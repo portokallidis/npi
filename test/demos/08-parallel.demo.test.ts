@@ -2,7 +2,7 @@
 // on each local device at the same time; the wall time is compared with the sum of both runs.
 import { expect, it } from "vitest";
 import { runDelegate } from "../../src/core/delegate.ts";
-import { agents, banner, bench, demo, makeRunner, ms, recordAgent } from "./harness.ts";
+import { agents, banner, bench, demo, makeRunner, ms, recordAgent } from "./common.ts";
 
 it("quick: two scouts in parallel on two devices", (t) =>
 	bench.run("parallel subagents", async (metrics) => {

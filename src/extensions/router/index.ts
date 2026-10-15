@@ -4,8 +4,8 @@ import { type Classifier, decideRoute, llmClassifier, parsePrefix, type RouteDec
 import { runtimeHolder } from "../runtime.ts";
 
 const PROMOTE_WAIT_MS = 5000;
-/** Other harness extensions (delegate) listen on this channel for the active route. */
-export const ROUTE_CHANNEL = "harness:route";
+/** Other npi extensions (delegate) listen on this channel for the active route. */
+export const ROUTE_CHANNEL = "npi:route";
 
 interface RouterState {
 	route: string;
@@ -15,7 +15,7 @@ interface RouterState {
 /**
  * Per prompt: decide a route (pin > #prefix > keywords > classifier > sticky > default), declare only
  * that route's tools (everything else stays reachable via tool_search), add its guideline, and, when the
- * selected model is `harness/auto`, dispatch to the route's first available model.
+ * selected model is `npi/auto`, dispatch to the route's first available model.
  */
 export default function router(pi: ExtensionAPI) {
 	const holder = runtimeHolder();
@@ -46,7 +46,7 @@ export default function router(pi: ExtensionAPI) {
 	function setStatus(ctx: ExtensionContext, model?: string) {
 		if (!ctx.hasUI || !current) return;
 		const how = current.reason === "classifier" ? `classifier ${current.confidence?.toFixed(2)}` : current.reason;
-		ctx.ui.setStatus("harness-route", `route: ${current.route} (${how})${model ? ` → ${model}` : ""}`);
+		ctx.ui.setStatus("npi-route", `route: ${current.route} (${how})${model ? ` → ${model}` : ""}`);
 	}
 
 	// Strip "#route " so the model never sees the routing prefix.
@@ -74,7 +74,7 @@ export default function router(pi: ExtensionAPI) {
 
 		const route = rt.config.routes[current.route];
 		pi.events.emit(ROUTE_CHANNEL, current.route);
-		pi.events.emit("harness:telemetry", { type: "route", route: current.route, reason: current.reason, confidence: current.confidence });
+		pi.events.emit("npi:telemetry", { type: "route", route: current.route, reason: current.reason, confidence: current.confidence });
 
 		// Lazy MCP: connect this route's servers the first time it is used.
 		for (const name of route.mcp ?? []) {
@@ -103,15 +103,15 @@ export default function router(pi: ExtensionAPI) {
 
 		const guideline = route.prompt;
 		if (guideline) {
-			event.systemPromptOptions.sections = { ...event.systemPromptOptions.sections, harness_route: guideline };
+			event.systemPromptOptions.sections = { ...event.systemPromptOptions.sections, npi_route: guideline };
 		}
 		setStatus(ctx);
 	});
 
 	pi.registerVirtualModel<RouterState>({
-		provider: "harness",
+		provider: "npi",
 		id: "auto",
-		name: "Harness auto-router",
+		name: "npi auto-router",
 		thinkingLevels: ["off", "low", "medium", "high"],
 		async route(request, ctx) {
 			const rt = holder.get(ctx);

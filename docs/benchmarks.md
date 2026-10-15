@@ -67,4 +67,4 @@ Client: os: win32 10.0.26200 · cpu: 13th Gen Intel(R) Core(TM) i7-13700H · cor
 | parallel subagents | scout (local/large) | llamacpp/qwen3.8-27b-gsq-rco-iq3_s | Linux GPU server (llama.cpp, Qwen 3.8 27B IQ3) | 60.6s | 3 | 4,962 | 4,803 / 591 | ✅ |
 | parallel subagents | scout (local/small) | lmstudio/qwen/qwen3.5-9b | Mac (LM Studio, MLX 4-bit) | 84.1s | 5 | 8,208 | 29,141 / 918 | ✅ |
 
-<sub>Time is wall-clock per call, including queueing and model load on local servers. TTFT is the time to the first streamed token. Output tok/s = output tokens ÷ (time − TTFT); prompt tok/s = input tokens ÷ TTFT (rough prefill speed). Tokens in include cache reads. Devices come from HARNESS_DEVICE_* labels in .env.</sub>
+<sub>Time is wall-clock per call, including queueing and model load on local servers. TTFT is the time to the first streamed token. Output tok/s = output tokens ÷ (time − TTFT); prompt tok/s = input tokens ÷ TTFT (rough prefill speed). Tokens in include cache reads. Devices come from NPI_DEVICE_* labels in .env.</sub>

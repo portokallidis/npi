@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import { it } from "vitest";
 import { decideRoute, llmClassifier } from "../../src/core/router.ts";
-import { banner, bench, config, demo } from "./harness.ts";
+import { banner, bench, config, demo } from "./common.ts";
 
 const cases: { prompt: string; route: string | null }[] = JSON.parse(readFileSync(new URL("../evals/router-cases.json", import.meta.url), "utf8"));
 

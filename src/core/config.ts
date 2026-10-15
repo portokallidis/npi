@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import { type Static, Type } from "typebox";
 import { Value } from "typebox/value";
 
-/** Root of the harness package (contains config/, agents/, skills/). */
-export const HARNESS_ROOT = process.env.HARNESS_ROOT ?? join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+/** Root of the npi package (contains config/, agents/, skills/). */
+export const NPI_ROOT = process.env.NPI_ROOT ?? join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const Thinking = Type.Union([
 	Type.Literal("off"),
@@ -48,7 +48,7 @@ const PanelistSchema = Type.Object({
 	persona: Type.Optional(Type.String()),
 });
 
-export const HarnessConfigSchema = Type.Object({
+export const NpiConfigSchema = Type.Object({
 	router: Type.Object({
 		classifierModels: Type.Array(Type.String()),
 		classifierTimeoutMs: Type.Number(),
@@ -136,22 +136,22 @@ export const HarnessConfigSchema = Type.Object({
 	}),
 });
 
-export type HarnessConfig = Static<typeof HarnessConfigSchema>;
+export type NpiConfig = Static<typeof NpiConfigSchema>;
 export type RouteConfig = Static<typeof RouteSchema>;
 export type PanelistConfig = Static<typeof PanelistSchema>;
 export type ThinkingLevel = Static<typeof Thinking>;
 
 /**
- * Load harness.json: `<agentDir>/harness.json` if present, else the packaged default.
+ * Load npi.json: `<agentDir>/npi.json` if present, else the packaged default.
  * Throws with readable schema errors when the file is invalid.
  */
-export function loadHarnessConfig(agentDir: string): HarnessConfig {
-	const userPath = join(agentDir, "harness.json");
-	const path = existsSync(userPath) ? userPath : join(HARNESS_ROOT, "config", "harness.json");
+export function loadNpiConfig(agentDir: string): NpiConfig {
+	const userPath = join(agentDir, "npi.json");
+	const path = existsSync(userPath) ? userPath : join(NPI_ROOT, "config", "npi.json");
 	const raw = JSON.parse(readFileSync(path, "utf8"));
 	delete raw.$comment;
-	if (!Value.Check(HarnessConfigSchema, raw)) {
-		const errors = [...Value.Errors(HarnessConfigSchema, raw)]
+	if (!Value.Check(NpiConfigSchema, raw)) {
+		const errors = [...Value.Errors(NpiConfigSchema, raw)]
 			.slice(0, 5)
 			.map((e) => `${e.instancePath || "/"} ${e.message}`);
 		throw new Error(`Invalid ${path}:\n  ${errors.join("\n  ")}`);

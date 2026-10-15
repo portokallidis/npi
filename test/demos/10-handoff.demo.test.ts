@@ -5,7 +5,7 @@ import { expect, it } from "vitest";
 import { approxTokens } from "../../src/core/artifacts.ts";
 import { HANDOFF_SYSTEM } from "../../src/core/handoff.ts";
 import { assistantText, userMessage } from "../../src/core/llm.ts";
-import { banner, bench, demo, ms } from "./harness.ts";
+import { banner, bench, demo, ms } from "./common.ts";
 
 const transcript = `USER: The invoice export is slow, 40s for 10k rows. Can you look?
 ASSISTANT: I profiled src/export/invoices.ts. 85% of time is in formatRow(), which calls Intl.NumberFormat per row.

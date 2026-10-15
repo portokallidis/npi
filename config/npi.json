@@ -1,5 +1,5 @@
 {
-  "$comment": "Harness config. Model refs are 'provider/model-id' (e.g. 'openrouter/z-ai/glm-5.3'). 'local/large' and 'local/small' are aliases set per machine in .env (HARNESS_LOCAL_LARGE / HARNESS_LOCAL_SMALL). Copied to ~/.harness/agent/harness.json by `harness init`; edit that copy.",
+  "$comment": "npi config. Model refs are 'provider/model-id' (e.g. 'openrouter/z-ai/glm-5.3'). 'local/large' and 'local/small' are aliases set per machine in .env (NPI_LOCAL_LARGE / NPI_LOCAL_SMALL). Copied to ~/.npi/agent/npi.json by `npi init`; edit that copy.",
   "router": {
     "classifierModels": [
       "local/small",
@@ -273,8 +273,8 @@
       "**/id_ed25519*",
       "~/.ssh/**",
       "~/.aws/**",
-      "~/.harness/agent/auth.json",
-      "~/.harness/agent/mcp-auth.json"
+      "~/.npi/agent/auth.json",
+      "~/.npi/agent/mcp-auth.json"
     ],
     "askCommands": [
       "\\brm\\s+-[a-z]*[rf]",
@@ -320,7 +320,7 @@
     "sandboxNetwork": "bridge"
   },
   "context": {
-    "artifactDir": ".harness/artifacts",
+    "artifactDir": ".npi/artifacts",
     "toolResultInlineChars": 12000,
     "toolResultPreviewChars": 2500,
     "subagentContextTokens": 60000,
@@ -387,7 +387,7 @@
       "panelist": 4000,
       "orchestrator": 8000
     },
-    "reportDir": ".harness/brainstorms",
+    "reportDir": ".npi/brainstorms",
     "fallbackPersonas": [
       "a skeptical, risk-focused engineer who looks for failure modes",
       "a pragmatic operator who optimizes for cost and low maintenance",
@@ -439,6 +439,6 @@
     "maxIncluded": 20,
     "askUser": true,
     "maxCostUSD": 5,
-    "reportDir": ".harness/science"
+    "reportDir": ".npi/science"
   }
 }

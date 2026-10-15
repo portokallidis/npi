@@ -2,8 +2,8 @@
 node_modules/
 .pnpm-store/
 
-# Harness runtime output (artifacts, brainstorm reports, offloaded tool output, worktrees, traces)
-.harness/
+# npi runtime output (artifacts, brainstorm reports, offloaded tool output, worktrees, traces)
+.npi/
 
 # Local agent / editor state
 .pi/
@@ -12,7 +12,7 @@ node_modules/
 .idea/
 *.swp
 
-# Secrets — never commit (keys go in env vars or ~/.harness/agent/auth.json)
+# Secrets — never commit (keys go in env vars or ~/.npi/agent/auth.json)
 .env
 .env.*
 !.env.example

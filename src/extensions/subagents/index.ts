@@ -5,7 +5,7 @@ import type { SubagentResult } from "../../core/subagent.ts";
 import { routeAgents } from "../../core/router.ts";
 import { runtimeHolder } from "../runtime.ts";
 
-const ROUTE_CHANNEL = "harness:route";
+const ROUTE_CHANNEL = "npi:route";
 
 const Task = Type.Object({
 	agent: Type.String({ description: "Agent name" }),
@@ -64,7 +64,7 @@ export default function subagents(pi: ExtensionAPI) {
 				},
 			});
 			for (const r of results) {
-				pi.events.emit("harness:telemetry", { type: "subagent", agent: r.agent, model: r.model, turns: r.usage.turns, costUSD: r.usage.costUSD, peakContextTokens: r.usage.peakContextTokens, error: r.error });
+				pi.events.emit("npi:telemetry", { type: "subagent", agent: r.agent, model: r.model, turns: r.usage.turns, costUSD: r.usage.costUSD, peakContextTokens: r.usage.peakContextTokens, error: r.error });
 			}
 			const cost = results.reduce((sum, r) => sum + r.usage.costUSD, 0);
 			const input = results.reduce((sum, r) => sum + r.usage.input, 0);
@@ -106,7 +106,7 @@ export default function subagents(pi: ExtensionAPI) {
 			ctx.ui.setWorkingMessage?.();
 			const text = formatResults([result]);
 			// Into the conversation, so the next turn can act on the findings.
-			pi.sendMessage({ customType: "harness-review", content: text, display: true, details: undefined });
+			pi.sendMessage({ customType: "npi-review", content: text, display: true, details: undefined });
 		},
 	});
 }

@@ -1,7 +1,7 @@
 import { type Static, Type } from "typebox";
-import type { HarnessConfig } from "../core/config.ts";
+import type { NpiConfig } from "../core/config.ts";
 
-export type BrainstormConfig = HarnessConfig["brainstorm"];
+export type BrainstormConfig = NpiConfig["brainstorm"];
 
 const Effort = Type.Union([Type.Literal("low"), Type.Literal("medium"), Type.Literal("high")]);
 

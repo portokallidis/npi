@@ -1,6 +1,6 @@
 import { Type } from "typebox";
 import { Budget } from "./budget.ts";
-import type { HarnessConfig, RouteConfig } from "./config.ts";
+import type { NpiConfig, RouteConfig } from "./config.ts";
 import { firstAvailable, type Llm } from "./llm.ts";
 import { withTimeout } from "./pool.ts";
 import { callStructured } from "./structured.ts";
@@ -43,7 +43,7 @@ export function matchKeywords(text: string, routes: Record<string, RouteConfig>)
 export type Classifier = (text: string) => Promise<{ route: string; confidence: number } | undefined>;
 
 /** LLM classifier over the route descriptions, on the first available small model. */
-export function llmClassifier(llm: Llm, config: HarnessConfig): Classifier {
+export function llmClassifier(llm: Llm, config: NpiConfig): Classifier {
 	const names = Object.keys(config.routes);
 	const schema = Type.Object({
 		route: Type.Union(names.map((n) => Type.Literal(n))),
@@ -69,7 +69,7 @@ export function llmClassifier(llm: Llm, config: HarnessConfig): Classifier {
 
 export interface DecideInput {
 	text: string;
-	config: HarnessConfig;
+	config: NpiConfig;
 	pinned?: string;
 	prefixRoute?: string;
 	previous?: string;
@@ -100,20 +100,20 @@ export async function decideRoute(input: DecideInput): Promise<RouteDecision> {
 }
 
 /** Tools to declare for a route: always-on + route tools + promoted MCP tools, limited to registered ones. */
-export function routeTools(config: HarnessConfig, route: string, registered: ReadonlySet<string>): string[] {
+export function routeTools(config: NpiConfig, route: string, registered: ReadonlySet<string>): string[] {
 	const r = config.routes[route];
 	const wanted = [...config.router.alwaysTools, ...(r?.tools ?? []), ...(r?.promote ?? [])];
 	return [...new Set(wanted)].filter((name) => registered.has(name));
 }
 
 /** Skills to list in the system prompt for a route; undefined `skills` keeps them all. */
-export function routeSkills<T extends { name: string }>(config: HarnessConfig, route: string, skills: readonly T[]): T[] {
+export function routeSkills<T extends { name: string }>(config: NpiConfig, route: string, skills: readonly T[]): T[] {
 	const allow = config.routes[route]?.skills;
 	return allow ? skills.filter((s) => allow.includes(s.name)) : [...skills];
 }
 
 /** Agents usable on a route; undefined `agents` allows all. */
-export function routeAgents<T>(config: HarnessConfig, route: string | undefined, agents: ReadonlyMap<string, T>): Map<string, T> {
+export function routeAgents<T>(config: NpiConfig, route: string | undefined, agents: ReadonlyMap<string, T>): Map<string, T> {
 	const allow = route ? config.routes[route]?.agents : undefined;
 	return allow ? new Map([...agents].filter(([name]) => allow.includes(name))) : new Map(agents);
 }

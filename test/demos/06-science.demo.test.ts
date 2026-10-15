@@ -6,9 +6,9 @@ import { renderScienceDigest, saveScience } from "../../src/science/report.ts";
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { RunState } from "../../src/core/runstate.ts";
-import { banner, bench, config, demo, ms } from "./harness.ts";
+import { banner, bench, config, demo, ms } from "./common.ts";
 
-const stateFile = join(process.cwd(), ".harness", "demo-state", "science.json");
+const stateFile = join(process.cwd(), ".npi", "demo-state", "science.json");
 
 it("science: creatine supplementation and memory in healthy adults", () =>
 	bench.run("science", async (metrics) => {
@@ -20,7 +20,7 @@ it("science: creatine supplementation and memory in healthy adults", () =>
 		state: new RunState(stateFile), // a rerun after a failure resumes from the last finished stage
 		onEvent: (e) => e.type === "phase" && console.log(`  [${ms(start)}] ${e.text}`),
 	});
-	const path = saveScience(report, process.cwd(), ".harness/science");
+	const path = saveScience(report, process.cwd(), ".npi/science");
 	rmSync(stateFile, { force: true });
 	const supported = report.checks.filter((c) => c.supported === "yes").length;
 	const cited = report.checks.filter((c) => c.supported !== "uncited").length;

@@ -8,7 +8,7 @@ import { Budget } from "../../src/core/budget.ts";
 import { digestToolOutput } from "../../src/core/digest.ts";
 import { llmClassifier } from "../../src/core/router.ts";
 import { callStructured } from "../../src/core/structured.ts";
-import { banner, bench, config, demo } from "./harness.ts";
+import { banner, bench, config, demo } from "./common.ts";
 
 const Invoice = Type.Object({
 	vendor: Type.String(),

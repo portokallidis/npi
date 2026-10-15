@@ -3,28 +3,28 @@ import { CONFIG_DIR_NAME, type ExtensionContext, getAgentDir } from "@earendil-w
 import { type AgentDef, loadAgentDefs } from "../core/agents.ts";
 import { ArtifactStore } from "../core/artifacts.ts";
 import { BenchRecorder } from "../core/bench.ts";
-import { HARNESS_ROOT, type HarnessConfig, loadHarnessConfig } from "../core/config.ts";
+import { NPI_ROOT, type NpiConfig, loadNpiConfig } from "../core/config.ts";
 import { type Llm, registryLlm } from "../core/llm.ts";
 import { createSessionRunner, type SubagentRunner } from "../core/subagent.ts";
 
-/** Everything the harness extensions share for one session. */
-export interface HarnessRuntime {
+/** Everything the npi extensions share for one session. */
+export interface NpiRuntime {
 	agentDir: string;
-	config: HarnessConfig;
+	config: NpiConfig;
 	llm: Llm;
 	runner: SubagentRunner;
 	/** One artifact folder per session run: full subagent reports, offloaded tool output, panel answers. */
 	artifacts: ArtifactStore;
 	/** Per-call benchmarks (time, TTFT, tokens/s per model and device); undefined when telemetry is off. */
 	bench?: BenchRecorder;
-	/** Packaged agents, then ~/.harness/agent/agents, then the trusted project's .pi/agents. */
+	/** Packaged agents, then ~/.npi/agent/agents, then the trusted project's .pi/agents. */
 	agents(): Map<string, AgentDef>;
 }
 
-export function createRuntime(ctx: ExtensionContext): HarnessRuntime {
+export function createRuntime(ctx: ExtensionContext): NpiRuntime {
 	const agentDir = getAgentDir();
-	const config = loadHarnessConfig(agentDir);
-	// One benchmark file per day; every harness model call (classifier, digests, pipelines) is timed.
+	const config = loadNpiConfig(agentDir);
+	// One benchmark file per day; every npi model call (classifier, digests, pipelines) is timed.
 	const bench = config.telemetry.enabled ? new BenchRecorder(join(agentDir, config.telemetry.dir, "bench"), new Date().toISOString().slice(0, 10)) : undefined;
 	const llm = registryLlm(ctx.modelRegistry, bench?.observe);
 	const artifacts = new ArtifactStore(ctx.cwd, config.context.artifactDir);
@@ -49,7 +49,7 @@ export function createRuntime(ctx: ExtensionContext): HarnessRuntime {
 		bench,
 		agents: () =>
 			loadAgentDefs([
-				join(HARNESS_ROOT, "agents"),
+				join(NPI_ROOT, "agents"),
 				join(agentDir, "agents"),
 				...(ctx.isProjectTrusted() ? [join(ctx.cwd, CONFIG_DIR_NAME, "agents")] : []),
 			]),
@@ -58,9 +58,9 @@ export function createRuntime(ctx: ExtensionContext): HarnessRuntime {
 
 /** Lazily (re)create the runtime per session; config errors surface as notifications, not crashes. */
 export function runtimeHolder() {
-	let runtime: HarnessRuntime | undefined;
+	let runtime: NpiRuntime | undefined;
 	return {
-		get(ctx: ExtensionContext): HarnessRuntime {
+		get(ctx: ExtensionContext): NpiRuntime {
 			runtime ??= createRuntime(ctx);
 			return runtime;
 		},

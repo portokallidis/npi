@@ -9,7 +9,7 @@ import { Budget } from "../../src/core/budget.ts";
 import { digestToolOutput } from "../../src/core/digest.ts";
 import { callStructured } from "../../src/core/structured.ts";
 import { ScreenSchema } from "../../src/science/types.ts";
-import { banner, bench, config, demo, ms, pick } from "./harness.ts";
+import { banner, bench, config, demo, ms, pick } from "./common.ts";
 
 it("quick: small model digests a huge tool output into what the agent needs", (t) =>
 	bench.run("small-model: digest", async (metrics) => {
@@ -22,7 +22,7 @@ it("quick: small model digests a huge tool output into what the agent needs", (t
 	const output = noise.slice(0, 9000) + failure + noise.slice(9000);
 
 	const start = Date.now();
-	const result = await digestToolOutput(output, { llm, models: [small], tool: "bash", path: ".harness/artifacts/demo/001-tool-bash.txt", previewChars: 2500, maxInputChars: 60_000, timeoutMs: 120_000 });
+	const result = await digestToolOutput(output, { llm, models: [small], tool: "bash", path: ".npi/artifacts/demo/001-tool-bash.txt", previewChars: 2500, maxInputChars: 60_000, timeoutMs: 120_000 });
 	banner(`Tool-output digest by ${result.by ?? "fallback preview"} in ${ms(start)}`, [
 		`input ~${approxTokens(output)} tokens → context ~${approxTokens(result.text)} tokens`,
 		"",

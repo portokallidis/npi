@@ -1,4 +1,4 @@
-/** Where a /handoff goes: a harness route, a specific model, or an external agent CLI. */
+/** Where a /handoff goes: an npi mode, a specific model, or an external agent CLI. */
 export type HandoffTarget =
 	| { kind: "same" }
 	| { kind: "route"; route: string }

@@ -2,7 +2,7 @@
 import { homedir } from "node:os";
 import { it } from "vitest";
 import { decide, type PolicyLevel } from "../../src/core/policy.ts";
-import { banner, bench, config } from "./harness.ts";
+import { banner, bench, config } from "./common.ts";
 
 const calls: [string, Record<string, unknown>, { destructiveHint?: boolean; readOnlyHint?: boolean }?][] = [
 	["bash", { command: "git diff --stat" }],

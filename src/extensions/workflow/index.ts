@@ -137,7 +137,7 @@ export default function workflow(pi: ExtensionAPI) {
 
 			// Summarize on the current route's model (handoffs are worth a good model, and it saw the work).
 			const route = rt.config.routes[rt.config.router.defaultRoute];
-			const model = ctx.model && !ctx.model.provider.startsWith("harness") ? `${ctx.model.provider}/${ctx.model.id}` : route.models[0];
+			const model = ctx.model && !ctx.model.provider.startsWith("npi") ? `${ctx.model.provider}/${ctx.model.id}` : route.models[0];
 			ctx.ui.setWorkingMessage?.("Writing handoff…");
 			const conversation = serializeConversation(convertToLlm(messages)).slice(-120_000);
 			const reply = await rt.llm.complete(model, {

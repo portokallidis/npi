@@ -54,7 +54,7 @@ export default function memory(pi: ExtensionAPI) {
 		if (!notes.length) return;
 		const pins = pinned(notes, basename(ctx.cwd), rt.config.memory.pinnedChars);
 		const body = `${notes.length} notes saved from earlier sessions; use \`recall\` when past preferences or decisions may matter.${pins.length ? `\nAlways keep in mind:\n${pins.join("\n")}` : ""}`;
-		event.systemPromptOptions.sections = { ...event.systemPromptOptions.sections, harness_memory: body };
+		event.systemPromptOptions.sections = { ...event.systemPromptOptions.sections, npi_memory: body };
 	});
 
 	pi.registerCommand("memory", {

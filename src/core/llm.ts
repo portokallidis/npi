@@ -9,12 +9,12 @@ export interface ModelRef {
 
 /**
  * "openrouter/z-ai/glm-5.3" -> { provider: "openrouter", id: "z-ai/glm-5.3" }.
- * "local/<name>" is an alias resolved from HARNESS_LOCAL_<NAME> (see .env.example), so shared configs can
+ * "local/<name>" is an alias resolved from NPI_LOCAL_<NAME> (see .env.example), so shared configs can
  * say "local/large" while each machine maps it to its own server, e.g. "llama.cpp/qwen3.8-27b".
  */
 export function parseModelRef(ref: string): ModelRef {
 	if (ref.startsWith("local/")) {
-		const target = process.env[`HARNESS_LOCAL_${ref.slice(6).toUpperCase().replace(/[^A-Z0-9]/g, "_")}`];
+		const target = process.env[`NPI_LOCAL_${ref.slice(6).toUpperCase().replace(/[^A-Z0-9]/g, "_")}`];
 		if (target && !target.startsWith("local/")) return parseModelRef(target);
 	}
 	const slash = ref.indexOf("/");
@@ -34,7 +34,7 @@ export interface LlmRequest {
 	signal?: AbortSignal;
 }
 
-/** The narrow model-calling surface the harness logic depends on (fakeable in tests). */
+/** The narrow model-calling surface npi's logic depends on (fakeable in tests). */
 export interface Llm {
 	/** Model is known, has credentials, and (for local servers) the server answers. */
 	available(ref: string): Promise<boolean>;

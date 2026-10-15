@@ -22,7 +22,7 @@ npm run demo         # everything, including 5 brainstorm, 6 science and 9 revie
 | 10 | Handoff | A messy session condensed into a self-contained prompt (decisions, files, next task) | either local model |
 | 11 | Router eval | The full labelled set (24 prompts) routed end to end with each local model as the classifier | either local model |
 
-**Benchmarks:** every run writes `.harness/benchmarks/<run>.jsonl` and a Markdown report, also copied to `latest.md`. The report has:
+**Benchmarks:** every run writes `.npi/benchmarks/<run>.jsonl` and a Markdown report, also copied to `latest.md`. The report has:
 - wall time and quality results per demo;
 - per model and device: calls, errors, median and p95 time, time to first token, output and prompt tokens/second, and cost;
 - per pipeline stage;
@@ -31,8 +31,8 @@ npm run demo         # everything, including 5 brainstorm, 6 science and 9 revie
 Merge several runs (e.g. quick demos on one day, slow ones later) into one report:
 
 ```bash
-npm run bench:report                          # → .harness/benchmarks/combined.md
+npm run bench:report                          # → .npi/benchmarks/combined.md
 npm run bench:report -- --last 3 --publish    # also → docs/benchmarks.md
 ```
 
-Name your machines with `HARNESS_DEVICE_<PROVIDER>=…` in `.env` (reports never show IPs). Set `HARNESS_BENCH_PUBLISH=1` to also refresh [docs/benchmarks.md](../../docs/benchmarks.md).
+Name your machines with `NPI_DEVICE_<PROVIDER>=…` in `.env` (reports never show IPs). Set `NPI_BENCH_PUBLISH=1` to also refresh [docs/benchmarks.md](../../docs/benchmarks.md).

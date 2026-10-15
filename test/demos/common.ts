@@ -6,19 +6,19 @@ import { join } from "node:path";
 import { ModelRegistry, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { ArtifactStore } from "../../src/core/artifacts.ts";
 import { BenchRecorder } from "../../src/core/bench.ts";
-import type { HarnessConfig } from "../../src/core/config.ts";
+import type { NpiConfig } from "../../src/core/config.ts";
 import { type Llm, registryLlm } from "../../src/core/llm.ts";
 import { localProviders } from "../../src/core/localmodels.ts";
 
 const root = new URL("../../", import.meta.url);
-for (const file of [join(root.pathname.replace(/^\/(\w:)/, "$1"), ".env"), join(homedir(), ".harness", "agent", ".env")]) {
+for (const file of [join(root.pathname.replace(/^\/(\w:)/, "$1"), ".env"), join(homedir(), ".npi", "agent", ".env")]) {
 	if (existsSync(file)) process.loadEnvFile(file);
 }
 
-export const config: HarnessConfig = JSON.parse(readFileSync(new URL("config/harness.json", root), "utf8"));
+export const config: NpiConfig = JSON.parse(readFileSync(new URL("config/npi.json", root), "utf8"));
 
 /** Shared by every demo file in one `npm run demo` (run id from global-setup). */
-export const bench = new BenchRecorder(join(process.cwd(), ".harness", "benchmarks"), process.env.HARNESS_BENCH_RUN ?? new Date().toISOString().slice(0, 13));
+export const bench = new BenchRecorder(join(process.cwd(), ".npi", "benchmarks"), process.env.NPI_BENCH_RUN ?? new Date().toISOString().slice(0, 13));
 
 export interface Demo {
 	llm: Llm;
@@ -35,7 +35,7 @@ export function demo(): Promise<Demo> {
 		const runtime = await ModelRuntime.create({ authPath: join(agentDir, "auth.json"), modelsPath: null });
 		for (const { name, config: provider } of await localProviders()) runtime.registerProvider(name, provider as any);
 		const llm = registryLlm(new ModelRegistry(runtime), bench.observe);
-		return { llm, runtime, agentDir, artifacts: new ArtifactStore(process.cwd(), ".harness/artifacts", "demo") };
+		return { llm, runtime, agentDir, artifacts: new ArtifactStore(process.cwd(), ".npi/artifacts", "demo") };
 	})();
 	return cached;
 }

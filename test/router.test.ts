@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import type { HarnessConfig } from "../src/core/config.ts";
+import type { NpiConfig } from "../src/core/config.ts";
 import { decideRoute, matchKeywords, parsePrefix, routeTools } from "../src/core/router.ts";
 
-const config: HarnessConfig = JSON.parse(readFileSync(new URL("../config/harness.json", import.meta.url), "utf8"));
+const config: NpiConfig = JSON.parse(readFileSync(new URL("../config/npi.json", import.meta.url), "utf8"));
 
 describe("router", () => {
 	it("routes typical prompts by keyword", () => {

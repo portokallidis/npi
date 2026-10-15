@@ -6,7 +6,7 @@ import type { CallRecord } from "./llm.ts";
 /**
  * Benchmarks: every model call, agent run and demo outcome is appended as JSONL; `renderBenchReport`
  * turns one run into Markdown tables (per demo, per model/device, per pipeline stage, per agent).
- * Devices are named from HARNESS_DEVICE_<PROVIDER> labels — never from IPs — so reports are safe to publish.
+ * Devices are named from NPI_DEVICE_<PROVIDER> labels — never from IPs — so reports are safe to publish.
  */
 export type BenchRecord =
 	| { kind: "env"; runId: string; at: string; client: Record<string, string | number> }
@@ -17,7 +17,7 @@ export type BenchRecord =
 const LOOPBACK = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/i;
 
 export function deviceOf(provider: string, baseUrl: string, local: boolean, env: NodeJS.ProcessEnv = process.env): string {
-	const label = env[`HARNESS_DEVICE_${provider.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`];
+	const label = env[`NPI_DEVICE_${provider.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`];
 	if (label) return label;
 	if (!local) return "cloud API";
 	return LOOPBACK.test(baseUrl) ? "this machine" : "LAN server";
@@ -56,8 +56,8 @@ export class BenchRecorder {
 	}
 
 	private write(record: BenchRecord): void {
-		// HARNESS_BENCH=0 (set by `/bench off`) pauses every recorder in the process.
-		if ((!this.enabled || process.env.HARNESS_BENCH === "0") && record.kind !== "env") return;
+		// NPI_BENCH=0 (set by `/bench off`) pauses every recorder in the process.
+		if ((!this.enabled || process.env.NPI_BENCH === "0") && record.kind !== "env") return;
 		appendFileSync(this.file, `${JSON.stringify(record)}\n`);
 	}
 
@@ -177,6 +177,6 @@ ${stageRows.join("\n") || "| — | | | | | |"}
 |---|---|---|---|---|---|---|---|---|
 ${agentRows.join("\n") || "| — | | | | | | | | |"}
 
-<sub>Time is wall-clock per call, including queueing and model load on local servers. TTFT is the time to the first streamed token. Output tok/s = output tokens ÷ (time − TTFT); prompt tok/s = input tokens ÷ TTFT (rough prefill speed). Tokens in include cache reads. Devices come from HARNESS_DEVICE_* labels in .env.</sub>
+<sub>Time is wall-clock per call, including queueing and model load on local servers. TTFT is the time to the first streamed token. Output tok/s = output tokens ÷ (time − TTFT); prompt tok/s = input tokens ÷ TTFT (rough prefill speed). Tokens in include cache reads. Devices come from NPI_DEVICE_* labels in .env.</sub>
 `;
 }

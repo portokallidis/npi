@@ -1,12 +1,12 @@
 // Router evals. Offline (always): keyword routing precision on a labelled set — a keyword hit must be the
 // right mode, and prompts labelled null must fall through to the classifier/default.
-// Live (HARNESS_LIVE_EVAL=1 + HARNESS_AGENT_DIR): the real LLM classifier on the fall-through prompts.
+// Live (NPI_LIVE_EVAL=1 + NPI_AGENT_DIR): the real LLM classifier on the fall-through prompts.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import type { HarnessConfig } from "../../src/core/config.ts";
+import type { NpiConfig } from "../../src/core/config.ts";
 import { matchKeywords } from "../../src/core/router.ts";
 
-const config: HarnessConfig = JSON.parse(readFileSync(new URL("../../config/harness.json", import.meta.url), "utf8"));
+const config: NpiConfig = JSON.parse(readFileSync(new URL("../../config/npi.json", import.meta.url), "utf8"));
 const cases: { prompt: string; route: string | null }[] = JSON.parse(readFileSync(new URL("./router-cases.json", import.meta.url), "utf8"));
 
 describe("router eval (keywords)", () => {
@@ -25,7 +25,7 @@ describe("router eval (keywords)", () => {
 	});
 });
 
-describe.skipIf(!process.env.HARNESS_LIVE_EVAL)("router eval (live classifier)", () => {
+describe.skipIf(!process.env.NPI_LIVE_EVAL)("router eval (live classifier)", () => {
 	it("classifies the fall-through prompts", async () => {
 		const { ModelRuntime, ModelRegistry } = await import("@earendil-works/pi-coding-agent");
 		const { registryLlm } = await import("../../src/core/llm.ts");

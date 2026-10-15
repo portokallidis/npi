@@ -141,7 +141,7 @@ export function dedupe(raws: readonly Raw[]): { papers: Paper[]; duplicates: num
 	return { papers: unique.map((p, i) => ({ id: `P${i + 1}`, ...p })), duplicates };
 }
 
-const UA = { "User-Agent": "npi-harness/0.1 (science mode; https://github.com/portokallidis/npi)" };
+const UA = { "User-Agent": "npi/0.1 (science mode; https://github.com/portokallidis/npi)" };
 
 async function getJson(url: string, headers: Record<string, string> = {}, signal?: AbortSignal): Promise<any> {
 	const res = await fetch(url, { headers: { ...UA, ...headers }, signal });

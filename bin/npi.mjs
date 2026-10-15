@@ -1,25 +1,34 @@
 #!/usr/bin/env node
-// Harness launcher: runs pi with an isolated agent directory (~/.harness/agent by default) that has
-// this package, pi-web-access, default models/MCP config, and the `harness/auto` router selected.
+// npi launcher: runs pi with an isolated agent directory (~/.npi/agent by default) that has
+// this package, pi-web-access, default models/MCP config, and the `npi/auto` router selected.
 //
-//   harness                 start the TUI (seeds config on first run)
-//   harness init [--force]  (re)seed config files; --force overwrites harness.json/models.json/mcp.json
-//   harness doctor          check keys, local model servers and the Playwright MCP endpoint
-//   harness <pi args...>    anything else is passed to pi (e.g. `harness -p "hi"`, `harness --list-models`)
+//   npi                     start the TUI (seeds config on first run)
+//   npi init [--force]  (re)seed config files; --force overwrites npi.json/models.json/mcp.json
+//   npi doctor          check keys, local model servers and the Playwright MCP endpoint
+//   npi <pi args...>        anything else is passed to pi (e.g. `npi -p "hi"`, `npi --list-models`)
 
 import { spawnSync, spawn } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const HARNESS_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const AGENT_DIR = process.env.HARNESS_AGENT_DIR || join(homedir(), ".harness", "agent");
+const NPI_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+const AGENT_DIR = process.env.NPI_AGENT_DIR || join(homedir(), ".npi", "agent");
 const WEB_ACCESS_PACKAGE = "npm:pi-web-access@0.40.0";
-const SEEDED_FILES = ["harness.json", "models.json", "mcp.json"];
+const SEEDED_FILES = ["npi.json", "models.json", "mcp.json"];
+
+// One-time migration from the project's old name: ~/.harness/agent -> ~/.npi/agent.
+const LEGACY_AGENT_DIR = join(homedir(), ".harness", "agent");
+if (!process.env.NPI_AGENT_DIR && !existsSync(AGENT_DIR) && existsSync(LEGACY_AGENT_DIR)) {
+	mkdirSync(dirname(AGENT_DIR), { recursive: true });
+	renameSync(LEGACY_AGENT_DIR, AGENT_DIR);
+	if (existsSync(join(AGENT_DIR, "harness.json")) && !existsSync(join(AGENT_DIR, "npi.json"))) renameSync(join(AGENT_DIR, "harness.json"), join(AGENT_DIR, "npi.json"));
+	console.log(`Moved ${LEGACY_AGENT_DIR} to ${AGENT_DIR}`);
+}
 
 // .env files (see .env.example): repo root, then the agent dir. Real env vars always win.
-for (const file of [join(HARNESS_ROOT, ".env"), join(AGENT_DIR, ".env")]) {
+for (const file of [join(NPI_ROOT, ".env"), join(AGENT_DIR, ".env")]) {
 	if (existsSync(file)) process.loadEnvFile(file);
 }
 
@@ -29,7 +38,7 @@ function piCliPath() {
 }
 
 function piEnv() {
-	return { ...process.env, PI_CODING_AGENT_DIR: AGENT_DIR, HARNESS_ROOT };
+	return { ...process.env, PI_CODING_AGENT_DIR: AGENT_DIR, NPI_ROOT };
 }
 
 function runPiSync(args) {
@@ -50,7 +59,7 @@ function init(force) {
 	for (const file of SEEDED_FILES) {
 		const target = join(AGENT_DIR, file);
 		if (force || !existsSync(target)) {
-			copyFileSync(join(HARNESS_ROOT, "config", file), target);
+			copyFileSync(join(NPI_ROOT, "config", file), target);
 			console.log(`seeded ${target}`);
 		}
 	}
@@ -59,19 +68,19 @@ function init(force) {
 	const settingsPath = join(AGENT_DIR, "settings.json");
 	// pi stores local packages relative to the settings file, so compare resolved paths.
 	const packages = (readJson(settingsPath, {}).packages ?? []).map((p) => (typeof p === "string" ? p : p.source));
-	const hasHarness = packages.some((p) => !/^(npm|git|https?):/.test(p) && resolve(AGENT_DIR, p) === HARNESS_ROOT);
-	if (!hasHarness && runPiSync(["install", HARNESS_ROOT]) !== 0) {
-		throw new Error("pi install of the harness package failed");
+	const hasNpi = packages.some((p) => !/^(npm|git|https?):/.test(p) && resolve(AGENT_DIR, p) === NPI_ROOT);
+	if (!hasNpi && runPiSync(["install", NPI_ROOT]) !== 0) {
+		throw new Error("pi install of the npi package failed");
 	}
 	if (!packages.some((p) => p.includes("pi-web-access")) && runPiSync(["install", WEB_ACCESS_PACKAGE]) !== 0) {
 		console.warn("warning: installing pi-web-access failed; web_search/fetch_content will be unavailable");
 	}
 
 	const settings = readJson(settingsPath, {});
-	settings.defaultProvider ??= "harness";
+	settings.defaultProvider ??= "npi";
 	settings.defaultModel ??= "auto";
 	writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
-	console.log(`harness agent dir: ${AGENT_DIR}`);
+	console.log(`npi agent dir: ${AGENT_DIR}`);
 }
 
 async function probe(url) {
@@ -96,12 +105,12 @@ async function doctor() {
 		searxng: "http://localhost:8888/",
 	};
 	for (const [name, url] of Object.entries(endpoints)) console.log(`${name.padEnd(20)} ${await probe(url)}  ${url}`);
-	for (const alias of ["HARNESS_LOCAL_LARGE", "HARNESS_LOCAL_SMALL"]) console.log(`${alias.padEnd(20)} ${process.env[alias] || "unset"}`);
-	console.log(`agent dir            ${existsSync(AGENT_DIR) ? AGENT_DIR : "not initialised (run: harness init)"}`);
+	for (const alias of ["NPI_LOCAL_LARGE", "NPI_LOCAL_SMALL"]) console.log(`${alias.padEnd(20)} ${process.env[alias] || "unset"}`);
+	console.log(`agent dir            ${existsSync(AGENT_DIR) ? AGENT_DIR : "not initialised (run: npi init)"}`);
 }
 
 // Git Bash (MSYS) rewrites "/command" arguments into Windows paths ("C:/Program Files/Git/command");
-// undo that so `harness -p "/stats"` works the same in every shell.
+// undo that so `npi -p "/stats"` works the same in every shell.
 const toSlash = (p) => p.replaceAll("\\", "/");
 const msysRoot = process.env.MSYSTEM
 	? toSlash(process.env.EXEPATH ?? "C:/Program Files/Git").replace(/\/bin\/?$/i, "").toLowerCase()
@@ -117,7 +126,7 @@ if (args[0] === "init") {
 } else if (args[0] === "doctor") {
 	await doctor();
 } else {
-	if (!existsSync(join(AGENT_DIR, "harness.json"))) init(false);
+	if (!existsSync(join(AGENT_DIR, "npi.json"))) init(false);
 	const child = spawn(process.execPath, [piCliPath(), ...args], { stdio: "inherit", env: piEnv() });
 	child.on("exit", (code, signal) => process.exit(signal ? 1 : (code ?? 0)));
 }

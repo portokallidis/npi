@@ -25,7 +25,7 @@ const call = (over: Record<string, unknown> = {}) => ({
 
 describe("bench", () => {
 	it("names devices from labels, never from IPs", () => {
-		expect(deviceOf("lmstudio", "http://10.0.0.2:1234/v1", true, { HARNESS_DEVICE_LMSTUDIO: "Mac mini M4" })).toBe("Mac mini M4");
+		expect(deviceOf("lmstudio", "http://10.0.0.2:1234/v1", true, { NPI_DEVICE_LMSTUDIO: "Mac mini M4" })).toBe("Mac mini M4");
 		expect(deviceOf("llamacpp", "http://10.0.0.7:8080/v1", true, {})).toBe("LAN server");
 		expect(deviceOf("ollama", "http://127.0.0.1:11434/v1", true, {})).toBe("this machine");
 		expect(deviceOf("anthropic", "https://api.anthropic.com", false, {})).toBe("cloud API");
@@ -39,9 +39,9 @@ describe("bench", () => {
 			m.accuracy = "7/8";
 		});
 		await expect(rec.run("broken", async () => Promise.reject(new Error("boom")))).rejects.toThrow("boom");
-		process.env.HARNESS_BENCH = "0";
+		process.env.NPI_BENCH = "0";
 		rec.observe(call({ label: "ignored" }));
-		delete process.env.HARNESS_BENCH;
+		delete process.env.NPI_BENCH;
 
 		const md = renderBenchReport(readBench(rec.file));
 		expect(md).not.toMatch(/192\.168/);

@@ -1,11 +1,11 @@
 // Merge benchmark runs into one report:
-//   npm run bench:report                      -> all runs in .harness/benchmarks → .harness/benchmarks/combined.md
+//   npm run bench:report                      -> all runs in .npi/benchmarks → .npi/benchmarks/combined.md
 //   npm run bench:report -- --last 3 --publish -> last 3 runs, also written to docs/benchmarks.md
 import { readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type BenchRecord, readBench, renderBenchReport } from "../src/core/bench.ts";
 
-const dir = join(process.cwd(), ".harness", "benchmarks");
+const dir = join(process.cwd(), ".npi", "benchmarks");
 const args = process.argv.slice(2);
 const last = Number(args[args.indexOf("--last") + 1]) || Number.POSITIVE_INFINITY;
 const files = readdirSync(dir).filter((f) => f.endsWith(".jsonl")).sort().slice(-last);

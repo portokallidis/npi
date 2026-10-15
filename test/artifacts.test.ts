@@ -6,12 +6,12 @@ import { ArtifactStore, extractSummary, preview } from "../src/core/artifacts.ts
 
 describe("artifacts", () => {
 	it("writes numbered artifacts and returns cwd-relative paths", () => {
-		const cwd = mkdtempSync(join(tmpdir(), "harness-"));
-		const store = new ArtifactStore(cwd, ".harness/artifacts", "run1");
+		const cwd = mkdtempSync(join(tmpdir(), "npi-"));
+		const store = new ArtifactStore(cwd, ".npi/artifacts", "run1");
 		const a = store.write("researcher report", "full text");
 		const b = store.write("x", "{}", "json");
-		expect(a).toBe(".harness/artifacts/run1/001-researcher-report.md");
-		expect(b).toBe(".harness/artifacts/run1/002-x.json");
+		expect(a).toBe(".npi/artifacts/run1/001-researcher-report.md");
+		expect(b).toBe(".npi/artifacts/run1/002-x.json");
 		expect(readFileSync(join(cwd, a), "utf8")).toBe("full text");
 	});
 

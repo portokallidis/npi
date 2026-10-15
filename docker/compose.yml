@@ -1,7 +1,7 @@
-# Supporting services for the harness.
+# Supporting services for npi.
 #   docker compose -f docker/compose.yml up -d                   # Playwright MCP only
 #   docker compose -f docker/compose.yml --profile search up -d  # + self-hosted SearXNG
-name: harness
+name: npi
 
 services:
   playwright-mcp:
@@ -19,7 +19,7 @@ services:
 
   searxng:
     # Optional private meta-search. pi-web-access tries it first when `searxngBaseUrl`
-    # is set in ~/.harness/agent/web-search.json (see README).
+    # is set in ~/.npi/agent/web-search.json (see README).
     profiles: ["search"]
     image: searxng/searxng:latest
     ports:

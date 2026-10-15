@@ -28,7 +28,7 @@ Put your servers and keys in `.env`. Ollama, LM Studio, llama.cpp, vLLM, Anthrop
 - Automatic file checkpoints, with `/undo` to roll back.
 
 **7. It's a plugin, not a fork.**
-npi is a pi package plus a small launcher, so it gets pi's updates. Its settings live in their own folder, `~/.harness/agent`, apart from plain `pi`.
+npi is a pi package plus a small launcher, so it gets pi's updates. Its settings live in their own folder, `~/.npi/agent`, apart from plain `pi`.
 
 ## Modes
 
@@ -50,8 +50,8 @@ npi chooses the mode automatically. To choose it yourself, start the request wit
 npm install
 cp .env.example .env          # add your keys and/or local model servers
 docker compose -f docker/compose.yml up -d   # browser for the "browse" mode (optional)
-npx harness doctor            # shows which models and services it can reach
-npx harness
+npx npi doctor            # shows which models and services it can reach
+npx npi
 ```
 
 ## Handy commands

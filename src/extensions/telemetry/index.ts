@@ -6,7 +6,7 @@ import { isLocalUrl } from "../../core/llm.ts";
 import { readTraces, summarize, TELEMETRY_CHANNEL, type TraceEvent, writeTrace } from "../../core/telemetry.ts";
 import { runtimeHolder } from "../runtime.ts";
 
-const ROUTE_CHANNEL = "harness:route";
+const ROUTE_CHANNEL = "npi:route";
 
 /**
  * Local tracing: every routing decision, model call, tool call and subagent run is appended as one
@@ -96,12 +96,12 @@ export default function telemetry(pi: ExtensionAPI) {
 			const rt = holder.get(ctx);
 			const arg = args.trim() || "report";
 			if (arg === "off" || arg === "on") {
-				process.env.HARNESS_BENCH = arg === "off" ? "0" : "1";
+				process.env.NPI_BENCH = arg === "off" ? "0" : "1";
 				return ctx.ui.notify(`Benchmark recording ${arg}`, "info");
 			}
-			if (!rt.bench) return ctx.ui.notify("Telemetry is disabled (telemetry.enabled in harness.json)", "warning");
+			if (!rt.bench) return ctx.ui.notify("Telemetry is disabled (telemetry.enabled in npi.json)", "warning");
 			const report = renderBenchReport(readBench(rt.bench.file));
-			const out = join(ctx.cwd, ".harness", "benchmarks");
+			const out = join(ctx.cwd, ".npi", "benchmarks");
 			mkdirSync(out, { recursive: true });
 			const file = join(out, `session-${rt.bench.runId}.md`);
 			writeFileSync(file, report);

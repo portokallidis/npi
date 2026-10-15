@@ -1,25 +1,25 @@
-# Harness roadmap
+# npi roadmap
 
 ## Principle: one profile per use case, nothing loaded up front
 
-Each use case is a **profile**, which is today's `route` in `harness.json` with a few more fields. A profile declares everything it needs, and only that gets loaded:
+Each use case is a **profile**, which is today's `route` in `npi.json` with a few more fields. A profile declares everything it needs, and only that gets loaded:
 
 | Field | Loaded how | When |
 |---|---|---|
-| `models` | `harness/auto` virtual model picks the first available | per request |
+| `models` | `npi/auto` virtual model picks the first available | per request |
 | `tools` | `setActiveTools`; everything else stays reachable through `tool_search` | when the profile is selected |
 | `skills` (new) | `before_agent_start` narrows `systemPromptOptions.skills` to this list; `/skill:name` still works for anything else | when the profile is selected |
-| `mcp` (new) | servers come from a harness-level catalogue and are added with `pi.registerMcpServer` the first time a profile needs them; the global `mcp.json` stays empty | lazily, then kept for the session |
+| `mcp` (new) | servers come from an npi-level catalogue and are added with `pi.registerMcpServer` the first time a profile needs them; the global `mcp.json` stays empty | lazily, then kept for the session |
 | `agents` (new) | the subagents `delegate` may use under this profile | when the profile is selected |
 | `budget` (new) | context and summary token caps, output caps, and a dollar cap for the profile | per run |
-| `packages` (new, launch-time) | pi package filters (`settings.packages[].extensions/skills`) for heavy or rarely used extensions; `harness --profile <name>` starts pi with only those | at startup (extension code cannot be unloaded mid-session) |
+| `packages` (new, launch-time) | pi package filters (`settings.packages[].extensions/skills`) for heavy or rarely used extensions; `npi --profile <name>` starts pi with only those | at startup (extension code cannot be unloaded mid-session) |
 
 Rule: when a new use case needs a new capability, add it to that use case's profile and nowhere else.
 
 ## Status (Oct 2026)
 
 **Done**
-- Per-mode loadout: `skills`, `mcp` (lazy) and `agents` per mode; MCP catalogue in `harness.json`.
+- Per-mode loadout: `skills`, `mcp` (lazy) and `agents` per mode; MCP catalogue in `npi.json`.
 - Approval policies (`readonly` / `ask` / `auto`) and the Docker sandbox. Protected paths. Subagents inherit the policy.
 - `plan` mode, the `todo` tool, `/handoff` to a mode, a model or an external agent CLI.
 - File checkpoints and `/undo`; git-worktree isolation for `coder`; `/review` with a read-only reviewer.
@@ -36,7 +36,7 @@ Rule: when a new use case needs a new capability, add it to that use case's prof
 - Browser action caching (Stagehand-style) and a domain allowlist for `browse`.
 - A per-turn advisor model (oh-my-pi style), opt-in per mode.
 - An OpenTelemetry exporter for the JSONL traces; scheduled or background agents.
-- Launch-time `harness --profile <name>` for heavy, rarely used extension packages.
+- Launch-time `npi --profile <name>` for heavy, rarely used extension packages.
 
 ## Improvements without bloat
 
@@ -82,7 +82,7 @@ Prefer pi's shipped example extensions or MCP servers, scoped to a mode, over ne
 | 7 | Tracing and evals | pi-telemetry spans (route decision, model, tokens, cost, subagent tree) to JSONL/OTel; a small eval set to tune router keywords, thresholds and model chains | Gemini, PydanticAI, Agents SDK |
 | 8 | Durable long runs | Checkpoint brainstorm/science stage outputs (already JSON) to the artifact dir; `--resume <run>` skips finished stages | PydanticAI, LangGraph, pi-durable |
 | 9 | Code intelligence | An LSP/symbol MCP server (e.g. Serena) in the `code` mode's `mcp` list only; diagnostics after edits | opencode, Crush, Qwen, Aider repo map |
-| 10 | Long-term memory | A `memory` skill writing `~/.harness/agent/memory/*.md` (retain/recall), listed only where useful | oh-my-pi, Letta, Qwen |
+| 10 | Long-term memory | A `memory` skill writing `~/.npi/agent/memory/*.md` (retain/recall), listed only where useful | oh-my-pi, Letta, Qwen |
 
 Also noted: guardrails against prompt injection in fetched pages; browser action caching (Stagehand); per-turn advisor model (oh-my-pi); scheduled agents and a `/review` command.
 
@@ -107,7 +107,7 @@ Also noted: guardrails against prompt injection in fetched pages; browser action
 - **Evaluation:** Deep Research Bench (RACE) for the research and science modes.
 
 ## Remote / mobile access
-- **Paseo** (getpaseo/paseo): the recommended option. Native iOS/Android/desktop/web, pi is a first-class agent, worktree per agent, and a `/paseo-handoff` skill. Point it at `PI_CODING_AGENT_DIR=~/.harness/agent` (or the `harness` launcher) so the harness's packages load.
+- **Paseo** (getpaseo/paseo): the recommended option. Native iOS/Android/desktop/web, pi is a first-class agent, worktree per agent, and a `/paseo-handoff` skill. Point it at `PI_CODING_AGENT_DIR=~/.npi/agent` (or the `npi` launcher) so npi's packages load.
 - **Orca** (stablyai/orca): desktop agent-development environment (ADE) with a mobile companion. Runs pi/Codex/Claude Code side by side in worktrees, sends one prompt to N agents and lets you merge the best. Good for multi-agent comparison; it is not a transcript-handoff tool.
 - **Oppi** (iOS, TestFlight): the deepest pi integration (mirrors a terminal session, native cards for extension UI).
 - **pi-web** (`@jmfederico/pi-web`): actively maintained browser UI.

@@ -7,9 +7,9 @@ import { expect, it } from "vitest";
 import { runBrainstorm } from "../../src/brainstorm/pipeline.ts";
 import { renderReport, saveReport } from "../../src/brainstorm/report.ts";
 import { RunState } from "../../src/core/runstate.ts";
-import { banner, bench, config, demo, ms } from "./harness.ts";
+import { banner, bench, config, demo, ms } from "./common.ts";
 
-const stateFile = join(process.cwd(), ".harness", "demo-state", "brainstorm.json");
+const stateFile = join(process.cwd(), ".npi", "demo-state", "brainstorm.json");
 
 it("brainstorm: backup strategy for a small home lab", (t) =>
 	bench.run("brainstorm", async (metrics) => {
@@ -33,7 +33,7 @@ it("brainstorm: backup strategy for a small home lab", (t) =>
 			// Checkpointed: a rerun after a failure resumes instead of starting over.
 			{ llm, artifacts, state: new RunState(stateFile), onEvent: (e) => e.type === "phase" && console.log(`  [${ms(start)}] ${e.text}`) },
 		);
-		const path = saveReport(report, process.cwd(), ".harness/brainstorms");
+		const path = saveReport(report, process.cwd(), ".npi/brainstorms");
 		rmSync(stateFile, { force: true });
 		banner(`Brainstorm with ${report.panel.map((p) => `${p.id}=${p.model}`).join(", ")} in ${ms(start)}`, [
 			renderReport(report).split("## Where the panel agreed")[0],
