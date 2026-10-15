@@ -1,0 +1,51 @@
+{
+  "$comment": "Day-to-day software work: plan, code, look up docs, drive a browser. Overlay on npi.json (objects merge, arrays replace, null removes).",
+  "description": "software development",
+  "prompt": "dev.md",
+  "routes": {
+    "science": null,
+    "brainstorm": null,
+    "chat": {
+      "tiers": {
+        "light": [
+          "local/small",
+          "anthropic/claude-haiku-5-5"
+        ]
+      }
+    },
+    "code": {
+      "tiers": {
+        "light": [
+          "local/large",
+          "anthropic/claude-sonnet-5-5"
+        ],
+        "heavy": [
+          "anthropic/claude-fable-5-1",
+          "openai/gpt-6.1-sol"
+        ]
+      }
+    },
+    "plan": {
+      "tiers": {
+        "heavy": [
+          "anthropic/claude-fable-5-1",
+          "openai/gpt-6.1-sol"
+        ]
+      }
+    },
+    "research": {
+      "tiers": {
+        "light": [
+          "anthropic/claude-haiku-5-5",
+          "local/large"
+        ]
+      }
+    }
+  },
+  "router": {
+    "defaultRoute": "chat"
+  },
+  "guard": {
+    "defaultPolicy": "ask"
+  }
+}

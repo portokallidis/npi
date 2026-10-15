@@ -44,6 +44,10 @@ npi is a pi package plus a small launcher, so it gets pi's updates. Its settings
 
 npi chooses the mode automatically. To choose it yourself, start the request with `#plan …`, or use `/route code` to stay in a mode.
 
+The same small-model call also rates the effort as **light**, **standard** or **heavy**, and picks a cheaper or stronger model within the mode. Prefix a prompt with `#heavy` or `#light` to set it yourself, or use `/tier`. A struggling turn (repeated tool errors or failing checks) escalates the next one automatically.
+
+**Profiles** keep each use case lean: `npi --profile dev`, `npi --profile research` or `npi --profile saas` loads only that use case's modes, models and ground rules. A repo can pick its own profile in `.pi/npi.json`.
+
 ## Get started
 
 ```bash
@@ -65,6 +69,13 @@ npx npi
 | `/stats` | cost, cache hits, routing and errors |
 | `/bench report` · `/bench off` | timing per model and device (time to first token, tokens/s); turn recording off or on |
 | `/memory` | notes it keeps between sessions |
+| `/ledger` | the project's invariants, decisions, failed approaches and open questions (`.npi/ledger.md`); injected into every prompt, so compaction never loses them |
+| `/exp` | experiment leaderboard: seed-locked runs, mean ± CI, paired permutation tests, git provenance |
+| `/tier` | pin the effort tier (light, standard, heavy) |
+| `/hypothesis` · `/ablate` · `/repro` | research workflows: pre-register, ablate, audit reproducibility |
+| `/prd` · `/preflight` | product workflows: spec with unit economics; read-only pre-release audit |
+
+Post-edit `checks` (typecheck, lint, schema validators) run when the agent finishes a change, and failures go straight back to the model to fix. See the [guide](docs/guide.md#workflow-tools).
 
 ## Try the demos
 
@@ -78,6 +89,7 @@ Measured on two home machines: a Mac running Qwen 3.5 9B in LM Studio ("small") 
 | Use case | Result |
 |---|---|
 | Routing (24 labelled prompts) | 24/24 with either model; ~3 s per decision on the small one |
+| Effort tier (30 labelled prompts) | large 30/30, small 26/30, no light↔heavy mix-ups; ~5–6 s per decision |
 | Pull invoice fields into JSON | 16/16 fields on both models |
 | Shrink a 5k-token log | ~300 tokens, error kept, 3–25 s |
 | Screen papers against criteria | 6/6 on the small model |

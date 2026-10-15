@@ -52,6 +52,15 @@ export default function science(pi: ExtensionAPI) {
 				onEvent: (e) => e.type === "phase" && status(e.text),
 			});
 			const path = saveScience(report, ctx.cwd, config.reportDir);
+			pi.events.emit("npi:telemetry", {
+				type: "science",
+				costUSD: report.costUSD,
+				screened: report.prisma.screened,
+				included: report.prisma.included,
+				supported: report.checks.filter((c) => c.supported === "yes").length,
+				sentences: report.checks.length,
+				stoppedEarly: report.stoppedEarly,
+			});
 			return { report, path, markdown: renderScience(report), digest: renderScienceDigest(report, path) };
 		} finally {
 			if (ctx.hasUI) ctx.ui.setWidget("science", undefined);

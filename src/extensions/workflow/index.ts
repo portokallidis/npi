@@ -3,11 +3,13 @@ import { type ExtensionAPI, type ExtensionContext, convertToLlm, type SessionEnt
 import { Type } from "typebox";
 import { changedFiles, gitRoot, restore, snapshot } from "../../core/gitsnap.ts";
 import { EXTERNAL_AGENTS, HANDOFF_SYSTEM, parseHandoff } from "../../core/handoff.ts";
-import { assistantText, parseModelRef, userMessage } from "../../core/llm.ts";
-import { runtimeHolder } from "../runtime.ts";
+import { assistantText, firstAvailable, parseModelRef, userMessage } from "../../core/llm.ts";
+import { latestEntry, runtimeHolder } from "../runtime.ts";
 
 const MUTATING = new Set(["edit", "write", "bash", "powershell"]);
 const MAX_CHECKPOINTS = 30;
+/** Session entry that restores the todo list after a restart or /resume. */
+const TODOS_ENTRY = "npi-todos";
 
 const TodoItem = Type.Object({
 	text: Type.String(),
@@ -44,12 +46,18 @@ export default function workflow(pi: ExtensionAPI) {
 	let checkpoints: { tree: string; at: string; label: string }[] = [];
 	let root: string | undefined | null = null; // null = not checked yet
 	let snappedThisTurn = false;
+	let activeRoute: string | undefined;
 
-	pi.on("session_start", () => {
+	pi.events.on("npi:route", (name) => {
+		activeRoute = typeof name === "string" ? name : undefined;
+	});
+
+	pi.on("session_start", (_event, ctx) => {
 		holder.reset();
-		todos = [];
+		todos = latestEntry<{ todos: Todo[] }>(ctx, TODOS_ENTRY)?.todos ?? [];
 		checkpoints = [];
 		root = null;
+		showTodos(ctx);
 	});
 
 	// ---- todo ------------------------------------------------------------------------------------
@@ -67,6 +75,7 @@ export default function workflow(pi: ExtensionAPI) {
 		parameters: TodoParams,
 		async execute(_id, params, _signal, _onUpdate, ctx) {
 			todos = params.todos;
+			pi.appendEntry(TODOS_ENTRY, { todos });
 			showTodos(ctx);
 			const open = todos.filter((t) => t.status !== "done").length;
 			return { content: [{ type: "text", text: `${todos.length} items, ${open} open` }], details: { todos } };
@@ -136,8 +145,12 @@ export default function workflow(pi: ExtensionAPI) {
 			if (!messages.length) return ctx.ui.notify("Nothing to hand off yet", "info");
 
 			// Summarize on the current route's model (handoffs are worth a good model, and it saw the work).
-			const route = rt.config.routes[rt.config.router.defaultRoute];
-			const model = ctx.model && !ctx.model.provider.startsWith("npi") ? `${ctx.model.provider}/${ctx.model.id}` : route.models[0];
+			const route = rt.config.routes[activeRoute ?? ""] ?? rt.config.routes[rt.config.router.defaultRoute];
+			const model =
+				ctx.model && !ctx.model.provider.startsWith("npi")
+					? `${ctx.model.provider}/${ctx.model.id}`
+					: await firstAvailable(rt.llm, [...route.models, ...rt.config.routes[rt.config.router.defaultRoute].models]);
+			if (!model) return ctx.ui.notify("No model available to write the handoff", "error");
 			ctx.ui.setWorkingMessage?.("Writing handoff…");
 			const conversation = serializeConversation(convertToLlm(messages)).slice(-120_000);
 			const reply = await rt.llm.complete(model, {

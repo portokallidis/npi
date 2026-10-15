@@ -16,6 +16,7 @@ const ROUTE_CHANNEL = "npi:route";
 export default function telemetry(pi: ExtensionAPI) {
 	const holder = runtimeHolder();
 	let route: string | undefined;
+	let tier: string | undefined;
 	let session = "unknown";
 	let dir: string | undefined;
 
@@ -32,7 +33,11 @@ export default function telemetry(pi: ExtensionAPI) {
 	pi.events.on(ROUTE_CHANNEL, (name) => {
 		route = typeof name === "string" ? name : undefined;
 	});
-	pi.events.on(TELEMETRY_CHANNEL, (event) => emit(event as TraceEvent));
+	pi.events.on(TELEMETRY_CHANNEL, (event) => {
+		const e = event as TraceEvent;
+		if (e.type === "route") tier = e.tier;
+		emit(e);
+	});
 
 	// Agent-loop model calls: time from message start, TTFT from the first streamed update.
 	let callStart = 0;
@@ -74,7 +79,7 @@ export default function telemetry(pi: ExtensionAPI) {
 			});
 		}
 		callStart = 0;
-		emit({ type: "llm", route, model: `${m.provider}/${m.model}`, input: m.usage.input, output: m.usage.output, cacheRead: m.usage.cacheRead, costUSD: m.usage.cost.total, stop: m.stopReason });
+		emit({ type: "llm", route, tier, model: `${m.provider}/${m.model}`, input: m.usage.input, output: m.usage.output, cacheRead: m.usage.cacheRead, costUSD: m.usage.cost.total, stop: m.stopReason });
 	});
 	pi.on("tool_execution_end", (event) => {
 		emit({ type: "tool", route, tool: event.toolName, ms: event.durationMs ?? 0, error: event.isError });

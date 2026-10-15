@@ -3,7 +3,7 @@
 Runnable use cases against **real models**: your local servers from `.env`, plus any cloud keys you set. Each demo prints what happened and records benchmark numbers.
 
 ```bash
-npm run demo:quick   # the quick ones: 1–4, 7, 8, 10, 11 (minutes on local models)
+npm run demo:quick   # the quick ones: 1–4, 7, 8, 10–12 (minutes on local models)
 npm run demo         # everything, including 5 brainstorm, 6 science and 9 review + fix (tens of minutes)
 ```
 
@@ -21,6 +21,7 @@ npm run demo         # everything, including 5 brainstorm, 6 science and 9 revie
 | 9 | Review + fix | Throwaway repo with a buggy commit. The reviewer finds it, the coder fixes it in its own worktree, the tests pass there, and the main checkout is untouched | a local model that can edit code |
 | 10 | Handoff | A messy session condensed into a self-contained prompt (decisions, files, next task) | either local model |
 | 11 | Router eval | The full labelled set (24 prompts) routed end to end with each local model as the classifier | either local model |
+| 12 | Tier eval | Effort tier (light/standard/heavy) on 30 labelled prompts per decision model: accuracy, light↔heavy confusions, latency. Compare your own candidates with `NPI_EVAL_CLASSIFIER_MODEL=a,b` or `NPI_EVAL_CLASSIFIER_ENDPOINT=url` | any decision model |
 
 **Benchmarks:** every run writes `.npi/benchmarks/<run>.jsonl` and a Markdown report, also copied to `latest.md`. The report has:
 - wall time and quality results per demo;

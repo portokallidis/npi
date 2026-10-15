@@ -3,10 +3,13 @@ import { join } from "node:path";
 
 /** One trace record. Flat and JSON-serialisable so it can be shipped to OTel/Langfuse later if wanted. */
 export type TraceEvent =
-	| { type: "route"; route: string; reason: string; confidence?: number }
-	| { type: "llm"; route?: string; model: string; input: number; output: number; cacheRead: number; costUSD: number; stop: string }
+	| { type: "route"; route: string; reason: string; confidence?: number; tier?: string; tierReason?: string }
+	| { type: "llm"; route?: string; tier?: string; model: string; input: number; output: number; cacheRead: number; costUSD: number; stop: string }
 	| { type: "tool"; route?: string; tool: string; ms: number; error: boolean }
 	| { type: "subagent"; agent: string; model: string; turns: number; costUSD: number; peakContextTokens: number; error?: string }
+	| { type: "checks"; runs: number; failed: number }
+	| { type: "experiment"; name: string; seeds: number; verdict: string }
+	| { type: "science"; costUSD: number; screened: number; included: number; supported: number; sentences: number; stoppedEarly?: string }
 	| { type: "brainstorm"; costUSD: number; pathways: number; disputes: number; resolved: number; recommended: boolean };
 
 export type TraceRecord = TraceEvent & { ts: string; session: string };
@@ -51,6 +54,9 @@ export function summarize(records: readonly TraceRecord[]): string {
 	const costByRoute = new Map<string, number>();
 	const routes = new Map<string, number>();
 	const reasons = new Map<string, number>();
+	const tierTurns = new Map<string, number>();
+	const tierCost = new Map<string, number>();
+	const tierCalls = new Map<string, number>();
 	const tools = new Map<string, number>();
 	const toolErrors = new Map<string, number>();
 	const toolMs = new Map<string, number>();
@@ -59,19 +65,27 @@ export function summarize(records: readonly TraceRecord[]): string {
 	let subCost = 0;
 	let subRuns = 0;
 	let subErrors = 0;
+	let checkRuns = 0;
+	let checkFails = 0;
 	for (const r of records) {
 		if (r.type === "route") {
 			add(routes, r.route, 1);
 			add(reasons, r.reason, 1);
+			if (r.tier) add(tierTurns, `${r.tier}${r.tierReason === "escalated" ? "↑" : ""}`, 1);
 		} else if (r.type === "llm") {
 			add(costByModel, r.model, r.costUSD);
 			add(costByRoute, r.route ?? "?", r.costUSD);
+			add(tierCost, r.tier ?? "standard", r.costUSD);
+			add(tierCalls, r.tier ?? "standard", 1);
 			input += r.input + r.cacheRead;
 			cached += r.cacheRead;
 		} else if (r.type === "tool") {
 			add(tools, r.tool, 1);
 			add(toolMs, r.tool, r.ms);
 			if (r.error) add(toolErrors, r.tool, 1);
+		} else if (r.type === "checks") {
+			checkRuns++;
+			if (r.failed) checkFails++;
 		} else if (r.type === "subagent") {
 			subRuns++;
 			subCost += r.costUSD;
@@ -85,9 +99,12 @@ export function summarize(records: readonly TraceRecord[]): string {
 		`Cost by model: ${top(costByModel, usd)}`,
 		`Cost by mode: ${top(costByRoute, usd)}`,
 		`Modes chosen: ${top(routes, String)}  (by ${top(reasons, String)})`,
+		`Tiers chosen: ${top(tierTurns, String)}  (↑ = escalated after a struggling turn)`,
+		`Cost per model call by tier: ${[...tierCalls].map(([k, n]) => `${k} ${usd((tierCost.get(k) ?? 0) / n)} × ${n}`).join(" · ") || "—"}`,
 		`Prompt cache hit: ${input ? Math.round((cached / input) * 100) : 0}% of ${input.toLocaleString()} input tokens`,
 		`Tools: ${top(tools, String)}`,
 		`Tool errors: ${top(toolErrors, String)}`,
+		`Post-edit check rounds: ${checkRuns} (${checkFails} failing)`,
 		`Slowest tools (total s): ${top(toolMs, (v) => (v / 1000).toFixed(1))}`,
 	].join("\n");
 }

@@ -15,7 +15,8 @@
       "delegate",
       "todo",
       "recall",
-      "remember"
+      "remember",
+      "ledger"
     ],
     "prewarm": true
   },
@@ -50,9 +51,9 @@
         "fetch_content"
       ],
       "keywords": [
-        "\bplan\b",
+        "\\bplan\\b",
         "how should (i|we) (implement|build|structure|approach)",
-        "design (the|a)\b",
+        "design (the|a)\\b",
         "architecture for",
         "before (we|you) (start|code)"
       ],
@@ -78,7 +79,8 @@
         "write",
         "grep",
         "find",
-        "ls"
+        "ls",
+        "experiment"
       ],
       "keywords": [
         "\\bfix\\b",
@@ -116,7 +118,8 @@
       "tools": [
         "web_search",
         "fetch_content",
-        "get_search_content"
+        "get_search_content",
+        "experiment"
       ],
       "keywords": [
         "latest",
@@ -219,18 +222,19 @@
         "science",
         "papers",
         "web_search",
-        "fetch_content"
+        "fetch_content",
+        "experiment"
       ],
       "keywords": [
-        "\b(studies|study) (show|find|found|suggest)",
-        "\bevidence (for|that|on)\b",
+        "\\b(studies|study) (show|find|found|suggest)",
+        "\\bevidence (for|that|on)\\b",
         "literature review",
         "systematic review",
         "meta-?analys",
-        "\bpeer[- ]reviewed\b",
-        "\bpapers? on\b",
-        "\bclinical trials?\b",
-        "\bRCTs?\b"
+        "\\bpeer[- ]reviewed\\b",
+        "\\bpapers? on\\b",
+        "\\bclinical trials?\\b",
+        "\\bRCTs?\\b"
       ],
       "prompt": "For literature questions call the `science` tool with the full question and context; it runs a systematic-review-style pipeline and returns a digest with the report path. For quick lookups use `papers`. Always cite papers by [P#] or DOI.",
       "agents": [
@@ -291,7 +295,8 @@
     "readonlyCommands": [
       "^\\s*(ls|cat|head|tail|wc|pwd|tree|file|stat|du|which|echo)\\b",
       "^\\s*(grep|rg|find|fd)\\b",
-      "^\\s*git\\s+(status|log|diff|show|blame|branch|ls-files|grep)\\b",
+      "^\\s*git\\s+(status|log|diff|show|blame|ls-files|grep)\\b",
+      "^\\s*git\\s+branch(\\s+(-a|-r|-v|-vv|--list|--show-current|--contains\\s+\\S+))*\\s*$",
       "^\\s*(npm|pnpm|yarn)\\s+(ls|list|view|outdated)\\b",
       "^\\s*(node|python3?)\\s+--version\\b"
     ],
@@ -310,7 +315,9 @@
       "papers",
       "brainstorm",
       "remember",
-      "science"
+      "science",
+      "ledger",
+      "experiment"
     ],
     "askTools": [
       "browser_(fill_form|file_upload|run_code|evaluate|drop)",
@@ -397,6 +404,10 @@
   "memory": {
     "dir": "memory",
     "pinnedChars": 1500
+  },
+  "ledger": {
+    "file": ".npi/ledger.md",
+    "promptChars": 2500
   },
   "telemetry": {
     "enabled": true,

@@ -18,10 +18,16 @@
       "./src/extensions/guard/index.ts",
       "./src/extensions/router/index.ts",
       "./src/extensions/memory/index.ts",
+      "./src/extensions/ledger/index.ts",
+      "./src/extensions/checks/index.ts",
+      "./src/extensions/experiment/index.ts",
       "./src/extensions/workflow/index.ts",
       "./src/extensions/subagents/index.ts",
       "./src/extensions/brainstorm/index.ts",
       "./src/extensions/science/index.ts"
+    ],
+    "prompts": [
+      "./prompts/*.md"
     ]
   },
   "scripts": {

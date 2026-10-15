@@ -20,6 +20,8 @@ const RouteSchema = Type.Object({
 	description: Type.String(),
 	/** Ordered model preferences; the first available one is used. */
 	models: Type.Array(Type.String()),
+	/** Extra model lists per effort tier (tried before `models`, which is the standard tier). */
+	tiers: Type.Optional(Type.Object({ light: Type.Optional(Type.Array(Type.String())), heavy: Type.Optional(Type.Array(Type.String())) })),
 	thinking: Type.Optional(Thinking),
 	tools: Type.Array(Type.String()),
 	/** Deferred/MCP tools to declare up front for this route. */
@@ -49,8 +51,19 @@ const PanelistSchema = Type.Object({
 });
 
 export const NpiConfigSchema = Type.Object({
+	/** Active launch-time profile (set by the loader from config/profiles/<name>.json, not written by hand). */
+	profile: Type.Optional(
+		Type.Object({
+			name: Type.String(),
+			description: Type.Optional(Type.String()),
+			/** Markdown appended to the system prompt in every route of this profile. */
+			prompt: Type.Optional(Type.String()),
+		}),
+	),
 	router: Type.Object({
 		classifierModels: Type.Array(Type.String()),
+		/** Optional HTTP decision model tried before classifierModels: POST {text, routes, tiers} -> {route, confidence, tier?}. */
+		classifierEndpoint: Type.Optional(Type.String()),
 		classifierTimeoutMs: Type.Number(),
 		minConfidence: Type.Number(),
 		defaultRoute: Type.String(),
@@ -71,6 +84,12 @@ export const NpiConfigSchema = Type.Object({
 		sandboxImage: Type.String(),
 		sandboxNetwork: Type.String(),
 	}),
+	/** Post-edit checks: after a run that changed matching files, run these and send failures back to the model. */
+	checks: Type.Optional(
+		Type.Array(Type.Object({ glob: Type.String(), command: Type.String(), timeoutMs: Type.Optional(Type.Number()) })),
+	),
+	/** Project ledger (invariants, decisions, failed approaches, open questions), injected into every prompt. */
+	ledger: Type.Optional(Type.Object({ file: Type.String(), promptChars: Type.Number() })),
 	/** Long-term memory: notes in <agentDir>/<dir>; #pin notes are always in the prompt (capped). */
 	memory: Type.Object({ dir: Type.String(), pinnedChars: Type.Number() }),
 	/** JSONL traces of routing, model calls, tools and subagents in <agentDir>/<dir> (see /stats). */
@@ -141,20 +160,77 @@ export type RouteConfig = Static<typeof RouteSchema>;
 export type PanelistConfig = Static<typeof PanelistSchema>;
 export type ThinkingLevel = Static<typeof Thinking>;
 
+type Json = Record<string, unknown>;
+const isObject = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** Overlay `patch` onto `base`: objects merge recursively, arrays and scalars replace, `null` deletes the key. */
+export function deepMerge(base: Json, patch: Json): Json {
+	const out: Json = { ...base };
+	for (const [key, value] of Object.entries(patch)) {
+		if (key === "$comment") continue;
+		if (value === null) delete out[key];
+		else if (isObject(value) && isObject(out[key])) out[key] = deepMerge(out[key] as Json, value);
+		else out[key] = value;
+	}
+	return out;
+}
+
+const readJson = (path: string): Json => JSON.parse(readFileSync(path, "utf8"));
+
+/** Packaged then user profile files (both optional, at least one required); `prompt` names a .md next to the file. */
+function loadProfile(agentDir: string, name: string): { overlay: Json; profile: NonNullable<NpiConfig["profile"]> } {
+	if (!/^[\w-]+$/.test(name)) throw new Error(`Invalid profile name "${name}"`);
+	const files = [join(NPI_ROOT, "config", "profiles", `${name}.json`), join(agentDir, "profiles", `${name}.json`)].filter((f) => existsSync(f));
+	if (!files.length) throw new Error(`Unknown profile "${name}" (looked in config/profiles and ${join(agentDir, "profiles")})`);
+	let overlay: Json = {};
+	const profile: NonNullable<NpiConfig["profile"]> = { name };
+	for (const file of files) {
+		const { description, prompt, ...rest } = readJson(file) as Json & { description?: string; prompt?: string };
+		overlay = deepMerge(overlay, rest);
+		if (description) profile.description = description;
+		if (prompt) profile.prompt = readFileSync(join(dirname(file), prompt), "utf8").trim();
+	}
+	return { overlay, profile };
+}
+
+export interface LoadOptions {
+	/** Profile name; default NPI_PROFILE, then the trusted project's `.pi/npi.json` "profile". None = every route. */
+	profile?: string;
+	/** Trusted project directory whose `.pi/npi.json` is overlaid last. Omit for untrusted projects. */
+	projectDir?: string;
+}
+
 /**
- * Load npi.json: `<agentDir>/npi.json` if present, else the packaged default.
- * Throws with readable schema errors when the file is invalid.
+ * Load npi.json: `<agentDir>/npi.json` if present, else the packaged default; then the profile overlay;
+ * then the trusted project's `.pi/npi.json`. Throws with readable schema errors when the result is invalid.
  */
-export function loadNpiConfig(agentDir: string): NpiConfig {
+export function loadNpiConfig(agentDir: string, options: LoadOptions = {}): NpiConfig {
 	const userPath = join(agentDir, "npi.json");
 	const path = existsSync(userPath) ? userPath : join(NPI_ROOT, "config", "npi.json");
-	const raw = JSON.parse(readFileSync(path, "utf8"));
+	let raw = readJson(path);
 	delete raw.$comment;
+
+	const projectPath = options.projectDir ? join(options.projectDir, ".pi", "npi.json") : undefined;
+	const project = projectPath && existsSync(projectPath) ? readJson(projectPath) : undefined;
+	const profileName = options.profile ?? (process.env.NPI_PROFILE || undefined) ?? (project?.profile as string | undefined);
+	if (profileName) {
+		const { overlay, profile } = loadProfile(agentDir, profileName);
+		raw = { ...deepMerge(raw, overlay), profile };
+	}
+	if (project) {
+		const { profile: _name, ...rest } = project;
+		raw = deepMerge(raw, rest);
+	}
+	const routes = raw.routes as Json | undefined;
+	const router = raw.router as Json | undefined;
+	if (routes && router && !routes[router.defaultRoute as string]) {
+		throw new Error(`Invalid config (${path}${profileName ? ` + profile ${profileName}` : ""}): defaultRoute "${router.defaultRoute}" is not a route`);
+	}
 	if (!Value.Check(NpiConfigSchema, raw)) {
 		const errors = [...Value.Errors(NpiConfigSchema, raw)]
 			.slice(0, 5)
 			.map((e) => `${e.instancePath || "/"} ${e.message}`);
-		throw new Error(`Invalid ${path}:\n  ${errors.join("\n  ")}`);
+		throw new Error(`Invalid ${path}${profileName ? ` + profile ${profileName}` : ""}:\n  ${errors.join("\n  ")}`);
 	}
-	return raw;
+	return raw as NpiConfig;
 }

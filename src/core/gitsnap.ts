@@ -49,6 +49,10 @@ export async function changedFiles(root: string, from: string, to: string): Prom
 	return (await git(root, ["diff", "--name-only", from, to])).split("\n").filter(Boolean);
 }
 
+export async function headSha(root: string): Promise<string | undefined> {
+	return git(root, ["rev-parse", "HEAD"]).catch(() => undefined);
+}
+
 export async function worktreeAdd(root: string, path: string, branch: string): Promise<void> {
 	await git(root, ["worktree", "add", "-b", branch, path, "HEAD"]);
 }

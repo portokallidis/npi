@@ -56,6 +56,33 @@ Every mode also has `read`, `tool_search` (finds and loads any other registered 
 - Tool follow-ups and retries stay on the model that started the turn, so prompt caches stay valid.
 - If you pick a concrete model in `/model` instead of `npi/auto`, routing still sets the tools, skills and MCP servers, but not the model.
 
+### Effort tiers: the model inside a mode
+The classifier call that picks the mode also rates the request's effort, at no extra cost: **light** (lookups, renames, small edits), **standard** or **heavy** (multi-file design, security, migrations, proofs, statistics, ambiguous specs). A mode can list `tiers.light` and `tiers.heavy` models; these are tried before its normal `models`, which act as the standard tier. Light caps thinking at `low`, and heavy raises it to at least `high`.
+
+| Tier source (first match wins) | |
+|---|---|
+| `/tier light\|standard\|heavy` | pinned until `/tier auto`; kept across restarts, like `/route` pins |
+| `#light` / `#heavy` prefix | for one prompt; combines with a mode prefix: `#code #heavy …` |
+| classifier | when it ran with enough confidence; for prompts of 25+ words it also runs when a keyword or pin chose the mode |
+| sticky | short follow-ups keep the previous tier |
+| default | standard |
+
+- **Escalation:** after a run with 3 or more tool errors, or two failing post-edit check rounds in a row, the next turn goes one tier up (shown as `·heavy↑` in the status bar). Pins and prefixes are never overridden.
+- **Decision model:** any chat model works through `router.classifierModels`; answers are cached for repeated prompts. For an encoder router (ModernBERT- or GLiNER-style classifiers) or any custom service, set `router.classifierEndpoint`. npi POSTs `{text, routes:[{name,description}], tiers}` and expects `{route, confidence, tier?}`; if the endpoint fails, it falls back to the model chain.
+- **Pick yours by measuring:** `npx vitest --run --config vitest.demo.config.ts test/demos/12-tier-eval.demo.test.ts` scores candidates on `test/evals/tier-cases.json` and reports accuracy, light↔heavy confusions and latency. Set `NPI_EVAL_CLASSIFIER_MODEL=a,b` and/or `NPI_EVAL_CLASSIFIER_ENDPOINT=…` to choose the candidates.
+- `/stats` reports the tiers chosen and the cost per model call by tier.
+
+### Profiles: one loadout per use case
+`npi --profile dev|research|saas` (or `NPI_PROFILE`, or `"profile"` in a trusted project's `.pi/npi.json`) overlays `config/profiles/<name>.json` onto `npi.json`. Overlay rules: objects merge, arrays replace, and `null` removes a key (e.g. a route). A profile also adds a Markdown prompt to every mode. With no profile, every mode is available.
+
+| Profile | Modes | Prompt focus |
+|---|---|---|
+| `dev` | chat, plan, code, research, browse | minimal diffs, run the narrowest test, record decisions |
+| `research` | chat, plan, code, research, brainstorm, science | cite or say "unverified", ≥5 seeds, fair baselines, leakage checks, log failures |
+| `saas` | chat, plan, code, research, browse, brainstorm | tenant scoping, expand→contract migrations, idempotent webhooks, no PII in logs, unit economics |
+
+Your own profiles go in `~/.npi/agent/profiles/<name>.json`; they are layered over a packaged profile of the same name. A trusted project's `.pi/npi.json` is applied last, so per-repo `checks`, models or policies live with the repo.
+
 ---
 
 ## Modes in detail
@@ -201,9 +228,12 @@ Add one entry to `routes` in `~/.npi/agent/npi.json`. Nothing else loads it.
   "skills": ["literature-review"],                    // skills listed in the prompt (omit = all)
   "agents": ["researcher", "paper-reader"],           // what delegate may use (omit = all)
   "keywords": ["\\bstud(y|ies)\\b", "meta-analysis", "\\bpapers?\\b"],
-  "prompt": "Cite every claim to a paper; grade evidence strength."
+  "prompt": "Cite every claim to a paper; grade evidence strength.",
+  "tiers": { "light": ["local/large"], "heavy": ["anthropic/claude-fable-5-1"] }  // optional per-tier models
 }
 ```
+
+To make the mode part of only one use case, put it in a profile (`~/.npi/agent/profiles/<name>.json`) instead of `npi.json`, and use `"routes": { "browse": null }` there to drop modes that use case doesn't need.
 
 Add MCP servers to `mcpServers` in `npi.json`, not to the global `mcp.json`, so they only connect for the modes that list them. The global `mcp.json` is for servers you want in every session.
 
@@ -214,6 +244,10 @@ Add MCP servers to `mcpServers` in `npi.json`, not to the global `mcp.json`, so 
 | Key | Meaning |
 |---|---|
 | `router.classifierModels` / `classifierTimeoutMs` / `minConfidence` | the classifier model chain, its timeout, and the confidence needed for its answer to count |
+| `router.classifierEndpoint` | optional HTTP decision model tried before the chain (see Effort tiers) |
+| `routes.<name>.tiers` | `{ light?: [...], heavy?: [...] }` model lists per effort tier |
+| `checks[]` | `{ glob, command, timeoutMs? }` post-edit checks; `{file}` / `{files}` placeholders |
+| `ledger.*` | `file` (default `.npi/ledger.md`), `promptChars` (cap for the copy injected into prompts) |
 | `router.defaultRoute` / `alwaysTools` | the fallback mode; tools declared in every mode |
 | `routes.<name>` | `description, models, thinking, tools, promote, keywords, prompt, skills, mcp, agents` |
 | `mcpServers.<name>` | the MCP catalogue (same shape as `mcp.json` entries: `url` or `command`, `exposure`, `timeout`, …) |
@@ -244,6 +278,11 @@ Model refs are `provider/model-id`, split at the first `/`: `openrouter/z-ai/glm
 | `/memory` | where long-term notes live, plus the pinned ones |
 | `/bench [report|on|off]` | benchmark report per model and device, or pause/resume recording |
 | `/route [name\|auto]` | show, pin or unpin the mode |
+| `/tier [light\|standard\|heavy\|auto]` | show, pin or unpin the effort tier |
+| `/ledger [edit]` | show or edit the project ledger |
+| `/exp [metric] [--lower]` · `/exp compare <a> <b> [metric]` | experiment leaderboard; statistical comparison |
+| `/hypothesis <idea>` · `/ablate <exp>` | pre-register an experiment; ablate a winning one (prompt templates) |
+| `/prd <feature>` · `/preflight [base]` · `/repro` | feature spec with unit economics; read-only pre-release audit; reproducibility audit |
 | `/routes` | list modes with their models and tools |
 | `/agents` | list subagents with their models, tools and MCP servers |
 | `/mcp`, `/model`, `/skill:name`, … | pi built-ins |
@@ -256,14 +295,20 @@ Model refs are `provider/model-id`, split at the first `/`: `openrouter/z-ai/glm
 | `ask` (default) | Asks before risky shell commands (`rm -rf`, `git push`, `git reset --hard`, `sudo`, `curl … \| sh`, publish, drop table…), before writes outside the project, and before state-changing browser or MCP tools (form fill, file upload, run code, `destructiveHint`). With no UI available, it blocks instead of asking |
 | `auto` | Runs everything, but **only if the mode is sandboxed**; otherwise it behaves like `ask` |
 
-- **Protected paths** are blocked in every policy: `.env*`, `.git/**`, keys and certificates, `~/.ssh`, `~/.aws`, and npi's own auth files.
-- **Sandbox:** set `"sandbox": true` on a mode to run its shell commands as `docker run --rm -v <project>:/work <image>`. The image defaults to `node:22-bookworm` and can be changed with `guard.sandboxImage`.
+- **Protected paths** are blocked for edits and writes in every policy: `.env*`, `.git/**`, keys and certificates, `~/.ssh`, `~/.aws`, and npi's own auth files. A shell command that names one of them (`cat .env`, `type ~/.ssh/id_rsa`) needs approval, and is blocked when there is no UI.
+- **Chained commands:** under `readonly`, every part of `a && b; c | d` must be on the allowlist. `find -delete/-exec` and `git branch -D` count as writes.
+- **`experiment run`** is checked exactly like a shell command.
+- **Sandbox:** set `"sandbox": true` on a mode to run its shell commands as `docker run --rm -v <project>:/work <image>`. The image defaults to `node:22-bookworm` and can be changed with `guard.sandboxImage`. Only `bash` can be wrapped, so `powershell` is blocked on sandboxed modes.
 - **Subagents** inherit the calling mode's policy. They have no one to ask, so `ask` means blocked; the research agents used by brainstorm and science always run `readonly`.
 
 ## Workflow tools
 - **`todo`:** a visible task list the model keeps up to date for multi-step work.
 - **Checkpoints and `/undo`:** before the first change in each turn, the working tree (tracked and untracked files, respecting `.gitignore`) is snapshotted through a private git index. Your staging area is never touched. Needs a git repository.
 - **`/handoff`:** instead of compressing a long conversation, the current model writes a self-contained prompt: context, decisions, files, artifacts, and the task with acceptance criteria. You edit it, and it opens in a fresh session on the chosen mode or model, or is saved for `claude`/`codex`/… with the exact command to run.
+- **Project ledger (`ledger` tool, `/ledger`):** `.npi/ledger.md` holds Invariants, Decisions, Failed approaches (don't retry) and Open questions. It is plain Markdown, so you can commit and hand-edit it. It sits outside the context window and is re-injected into every prompt (capped by `ledger.promptChars`). Invariants, failures and questions are kept first, then the newest decisions. Compaction and restarts can't lose it.
+- **Post-edit checks (`checks` in npi.json, a profile or `.pi/npi.json`):** when a run that changed files ends, every check whose glob matches a changed file runs once. Failures (error lines first) go back to the model as a follow-up message, for up to 3 automatic fix rounds per prompt. Example: `"checks": [{"glob": "*.ts", "command": "npx tsc --noEmit"}, {"glob": "*.py", "command": "ruff check {file}"}, {"glob": "*.ttl", "command": "pyshacl -s shapes.ttl {file}"}]`. Checks are your own commands and run unsandboxed.
+- **Experiments (`experiment` tool, `/exp`):** `run` executes a command once per seed (`{seed}` or `$SEED`). The command prints a final JSON line of numeric metrics. The tool records mean ± sd with a 95% bootstrap CI, plus provenance: git HEAD, an exact working-tree snapshot (restorable like `/undo`), the session entry for `/tree`, and the model. `compare` uses a paired sign-flip permutation test on shared seeds (exact for up to 16 seeds), with a bootstrap CI of Δ and Cohen's d; with no shared seeds, it runs an unpaired permutation test. A `rejected` verdict is copied to the ledger's Failed list. Everything is appended to `.npi/experiments.jsonl`.
+- **Todos and pins persist:** the todo list and `/route`/`/tier` pins are stored as session entries, so `/resume` and restarts bring them back.
 - **Durable runs:** brainstorm and science save each finished stage to `state.json`. `--resume` continues without repeating paid model calls or questions you already answered.
 
 ## Memory and stats
@@ -297,14 +342,15 @@ Every mode, brainstorm and science model list ends with a `local/*` fallback (th
 
 ```
 bin/npi.mjs               launcher (isolated agent dir, init, doctor)
-config/                       defaults seeded into ~/.npi/agent
+config/                       defaults seeded into ~/.npi/agent; config/profiles/ (dev, research, saas)
+prompts/                      prompt templates (/hypothesis, /ablate, /prd, /preflight, /repro)
 docker/compose.yml            Playwright MCP (+ optional SearXNG)
 agents/                       bundled subagents
-src/core/                     agents, artifacts, bench, budget, config, delegate, digest, gitsnap, handoff, llm, localmodels, memory, policy, pool, router, runstate, structured, subagent, telemetry
+src/core/                     agents, artifacts, bench, budget, checks, config, delegate, digest, experiment, gitsnap, handoff, ledger, llm, localmodels, memory, policy, pool, router, runstate, structured, subagent, telemetry
 src/brainstorm/               frame, panel, map, resolve/{evidence,crossExam,askUser,judge}, pipeline, report
 src/science/                  papers (OpenAlex/PubMed/S2/arXiv), pipeline, report
-src/extensions/               local-models, context, telemetry, guard, router, memory, workflow, subagents, brainstorm, science
-test/                         unit tests (scripted fake models); test/integration needs NPI_AGENT_DIR (+ Playwright)
+src/extensions/               local-models, context, telemetry, guard, router, memory, ledger, checks, experiment, workflow, subagents, brainstorm, science
+test/                         unit tests (scripted fake models); test/evals labelled prompts; test/demos live runs; test/integration needs NPI_AGENT_DIR (+ Playwright)
 ```
 
 ```bash
@@ -317,6 +363,7 @@ NPI_AGENT_DIR=~/.npi/agent npx vitest --run test/integration   # live pi session
 
 - **Run on real local models (LM Studio and llama.cpp on the LAN):** `npi/auto` routing with fallback to `local/large`, telemetry and prompt caching.
 - **Run for real in the pi CLI with scripted models:** routing (keyword, classifier, prefix), per-mode tools, lazy MCP, tool-output offload, subagents driving Playwright, and the budget steer and stop.
-- **Covered by unit tests:** policy, snapshots and undo, memory, telemetry, the brainstorm and science pipelines (including resume), paper parsers, and router evals.
+- **Run on real local models:** effort tiers (demo 12), profiles, and the check gate, ledger and experiment tool inside live agent turns.
+- **Covered by unit tests:** policy, config overlays, router and tiers, snapshots and undo, memory, ledger, checks, experiment statistics, telemetry, the brainstorm and science pipelines (including resume), paper parsers, and router evals.
 - **Not yet run with frontier API keys;** prompts may need tuning on first real use.
 - **Built on pi's primitives:** virtual models, `registerMcpServer`, SDK sessions, tool search and skills. oh-my-pi and roughly 30 other harnesses were reviewed as design references (see the roadmap).

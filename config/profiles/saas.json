@@ -1,0 +1,50 @@
+{
+  "$comment": "Building and running a multi-tenant SaaS product. Overlay on npi.json.",
+  "description": "SaaS product engineering",
+  "prompt": "saas.md",
+  "routes": {
+    "science": null,
+    "chat": {
+      "tiers": {
+        "light": [
+          "local/small",
+          "anthropic/claude-haiku-5-5"
+        ]
+      }
+    },
+    "code": {
+      "tiers": {
+        "light": [
+          "local/large",
+          "anthropic/claude-sonnet-5-5"
+        ],
+        "heavy": [
+          "anthropic/claude-fable-5-1",
+          "openai/gpt-6.1-sol"
+        ]
+      }
+    },
+    "plan": {
+      "tiers": {
+        "heavy": [
+          "anthropic/claude-fable-5-1",
+          "openai/gpt-6.1-sol"
+        ]
+      }
+    },
+    "browse": {
+      "tiers": {
+        "light": [
+          "anthropic/claude-haiku-5-5",
+          "local/large"
+        ]
+      }
+    }
+  },
+  "router": {
+    "defaultRoute": "chat"
+  },
+  "guard": {
+    "defaultPolicy": "ask"
+  }
+}

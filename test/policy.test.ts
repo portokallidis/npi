@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { NpiConfig } from "../src/core/config.ts";
-import { decide, isProtected, sandboxCommand } from "../src/core/policy.ts";
+import { decide, isProtected, protectedShellPaths, sandboxCommand, splitShell } from "../src/core/policy.ts";
 
 const { guard } = JSON.parse(readFileSync(new URL("../config/npi.json", import.meta.url), "utf8")) as NpiConfig;
 const env = { cwd: "/home/u/proj", home: "/home/u", sandboxed: false };
@@ -25,6 +25,31 @@ describe("policy", () => {
 		expect(run("readonly", "web_search", { query: "x" })).toBe("allow");
 		expect(run("readonly", "mcp__x__thing", {}, { readOnlyHint: true })).toBe("allow");
 		expect(run("readonly", "mcp__x__thing", {})).toBe("deny");
+	});
+
+	it("readonly checks every segment of a chained command", () => {
+		expect(splitShell(`ls && rm -rf x; echo "a;b" | wc -l || true`)).toEqual(["ls", "rm -rf x", `echo "a;b"`, "wc -l", "true"]);
+		expect(splitShell("grep x a 2>&1")).toEqual(["grep x a 2>&1"]);
+		expect(run("readonly", "bash", { command: "ls && rm -rf x" })).toBe("deny");
+		expect(run("readonly", "bash", { command: "ls; git status" })).toBe("allow");
+		expect(run("readonly", "bash", { command: "git log | head -5" })).toBe("allow");
+		expect(run("readonly", "bash", { command: "find . -name '*.tmp' -delete" })).toBe("deny");
+		expect(run("readonly", "bash", { command: "find . -exec rm {} ;" })).toBe("deny");
+		expect(run("readonly", "bash", { command: "git branch -D feature" })).toBe("deny");
+		expect(run("readonly", "bash", { command: "git branch -a" })).toBe("allow");
+		expect(run("readonly", "bash", { command: "git branch" })).toBe("allow");
+	});
+
+	it("asks before shell commands touch protected paths", () => {
+		expect(protectedShellPaths("cat .env && ls", env.cwd, env.home, guard.protectedPaths)).toEqual([".env"]);
+		expect(run("readonly", "bash", { command: "cat .env" })).toBe("ask");
+		expect(run("ask", "bash", { command: "cat ~/.ssh/id_rsa" })).toBe("ask");
+		expect(run("ask", "powershell", { command: "Get-Content $HOME/.aws/credentials" })).toBe("ask");
+		expect(run("ask", "bash", { command: "cat .gitignore src/env.ts" })).toBe("allow");
+	});
+
+	it("blocks powershell on sandboxed routes", () => {
+		expect(run("auto", "powershell", { command: "ls" }, {}, { ...env, sandboxed: true })).toBe("deny");
 	});
 
 	it("ask gates risky commands, outside writes and state-changing browser tools", () => {

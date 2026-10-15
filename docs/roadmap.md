@@ -1,20 +1,16 @@
 # npi roadmap
 
-## Principle: one profile per use case, nothing loaded up front
+## Principle: load only what the use case and the request need
 
-Each use case is a **profile**, which is today's `route` in `npi.json` with a few more fields. A profile declares everything it needs, and only that gets loaded:
+Three layers, each narrower than the last:
 
-| Field | Loaded how | When |
+| Layer | Chosen | Decides |
 |---|---|---|
-| `models` | `npi/auto` virtual model picks the first available | per request |
-| `tools` | `setActiveTools`; everything else stays reachable through `tool_search` | when the profile is selected |
-| `skills` (new) | `before_agent_start` narrows `systemPromptOptions.skills` to this list; `/skill:name` still works for anything else | when the profile is selected |
-| `mcp` (new) | servers come from an npi-level catalogue and are added with `pi.registerMcpServer` the first time a profile needs them; the global `mcp.json` stays empty | lazily, then kept for the session |
-| `agents` (new) | the subagents `delegate` may use under this profile | when the profile is selected |
-| `budget` (new) | context and summary token caps, output caps, and a dollar cap for the profile | per run |
-| `packages` (new, launch-time) | pi package filters (`settings.packages[].extensions/skills`) for heavy or rarely used extensions; `npi --profile <name>` starts pi with only those | at startup (extension code cannot be unloaded mid-session) |
+| **Profile** (`npi --profile dev\|research\|saas`, or `.pi/npi.json`) | at launch | which modes exist, their models and policies, the ground-rules prompt, `checks` |
+| **Mode** (a route in `npi.json`) | per request: pin, `#prefix`, keywords, classifier | tools (`setActiveTools`; the rest via `tool_search`), skills, lazy MCP servers, subagents, policy, sandbox |
+| **Tier** (light / standard / heavy) | per request, by the same classifier call; escalates on struggle | which of the mode's model lists is used, and how much thinking |
 
-Rule: when a new use case needs a new capability, add it to that use case's profile and nowhere else.
+Rule: when a use case needs a new capability, add it to that profile or mode and nowhere else.
 
 ## Status (Oct 2026)
 
@@ -29,23 +25,26 @@ Rule: when a new use case needs a new capability, add it to that use case's prof
 - Science mode: protocol, 4-database search, dual screening with κ, extraction with quote checks, GRADE, citation verification, BibTeX.
 - Local models configured from `.env` (llama.cpp, LM Studio, Ollama, vLLM, any OpenAI-compatible server) with automatic discovery; `local/large` and `local/small` aliases.
 - Code intelligence: Serena MCP in `code` mode (opt-in).
+- Launch-time profiles (`npi --profile dev|research|saas`, user and trusted-project overlays).
+- Effort tiers chosen by the same classifier call, with escalation on struggle, `/tier`, an HTTP decision-model endpoint, a classifier cache and a tier eval (demo 12).
+- Project ledger (`.npi/ledger.md`) re-injected every turn; todos and pins persist across restarts.
+- Post-edit check gate; experiment log with bootstrap CIs and permutation tests; prompt templates `/hypothesis`, `/ablate`, `/prd`, `/preflight`, `/repro`.
+- Guard hardening: chained shell commands, `find -delete/-exec`, `git branch -D`, protected paths in shell commands, no powershell on sandboxed modes.
 
 **Next**
+- A sub-second decision model. The 9B and 27B local classifiers are accurate but take about 5–6 s; candidates are a 1–2B instruct model or an encoder behind `router.classifierEndpoint`, measured with demo 12.
 - Guardrails against prompt injection in fetched pages and papers: a classifier pass on tool results in `browse`, `research` and `science`.
 - Science: full-text reading of open-access PDFs; contradiction search; a novelty check for idea generation.
 - Browser action caching (Stagehand-style) and a domain allowlist for `browse`.
 - A per-turn advisor model (oh-my-pi style), opt-in per mode.
 - An OpenTelemetry exporter for the JSONL traces; scheduled or background agents.
-- Launch-time `npi --profile <name>` for heavy, rarely used extension packages.
 
 ## Improvements without bloat
 
-1. **Profiles replace routes.** Same object, more fields (above). No new subsystem.
-2. **Lazy MCP per profile.** Move Playwright and any future servers out of `mcp.json` into the profile catalogue, so a chat or code session never connects to a browser.
-3. **Skill scoping per profile.** The system prompt lists only that profile's skills, so it doesn't grow as skills are added.
-4. **Prefer built-ins.** Replace our code wherever pi or oh-my-pi already ships an equivalent. Candidates: subagents, ask-user dialogs, output truncation, web and browser tools, cost tracking. Decided after the repo review.
-5. **Cache the classifier per conversation.** The classifier already runs only when no pin, prefix or keyword matches. Next: skip it while the conversation stays on one topic, to keep latency and cost near zero.
-6. **One artifact index per session.** Write an `index.md` listing every artifact with a one-line description, so the model reads one small file instead of guessing paths.
+1. **Prefer built-ins.** Replace our code wherever pi or oh-my-pi already ships an equivalent. Candidates: subagents, ask-user dialogs, output truncation, web and browser tools, cost tracking.
+2. **Skip the classifier while a conversation stays on one topic.** Repeated prompts are already cached; topic continuity would remove most remaining calls.
+3. **One artifact index per session.** Write an `index.md` listing every artifact with a one-line description, so the model reads one small file instead of guessing paths.
+4. **Profiles that filter pi packages at launch,** for heavy, rarely used extensions (extension code cannot be unloaded mid-session).
 
 ## Scientific research mode (`science`, implemented; original design)
 

@@ -23,7 +23,8 @@ export interface NpiRuntime {
 
 export function createRuntime(ctx: ExtensionContext): NpiRuntime {
 	const agentDir = getAgentDir();
-	const config = loadNpiConfig(agentDir);
+	// The project's .pi/npi.json (profile + overrides) is honoured only for trusted projects, like .pi/agents.
+	const config = loadNpiConfig(agentDir, { projectDir: ctx.isProjectTrusted() ? ctx.cwd : undefined });
 	// One benchmark file per day; every npi model call (classifier, digests, pipelines) is timed.
 	const bench = config.telemetry.enabled ? new BenchRecorder(join(agentDir, config.telemetry.dir, "bench"), new Date().toISOString().slice(0, 10)) : undefined;
 	const llm = registryLlm(ctx.modelRegistry, bench?.observe);
@@ -54,6 +55,14 @@ export function createRuntime(ctx: ExtensionContext): NpiRuntime {
 				...(ctx.isProjectTrusted() ? [join(ctx.cwd, CONFIG_DIR_NAME, "agents")] : []),
 			]),
 	};
+}
+
+/** Latest `pi.appendEntry(customType, data)` on the current branch: restores extension state after a restart. */
+export function latestEntry<T>(ctx: ExtensionContext, customType: string): T | undefined {
+	const entry = ctx.sessionManager
+		.getBranch()
+		.findLast((e) => e.type === "custom" && (e as { customType?: string }).customType === customType);
+	return (entry as { data?: T } | undefined)?.data;
 }
 
 /** Lazily (re)create the runtime per session; config errors surface as notifications, not crashes. */

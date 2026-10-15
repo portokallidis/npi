@@ -5,10 +5,11 @@
 //   npi                     start the TUI (seeds config on first run)
 //   npi init [--force]  (re)seed config files; --force overwrites npi.json/models.json/mcp.json
 //   npi doctor          check keys, local model servers and the Playwright MCP endpoint
+//   npi --profile <name>    launch with a profile overlay (dev, research, saas; see config/profiles)
 //   npi <pi args...>        anything else is passed to pi (e.g. `npi -p "hi"`, `npi --list-models`)
 
 import { spawnSync, spawn } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,15 +18,6 @@ const NPI_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const AGENT_DIR = process.env.NPI_AGENT_DIR || join(homedir(), ".npi", "agent");
 const WEB_ACCESS_PACKAGE = "npm:pi-web-access@0.40.0";
 const SEEDED_FILES = ["npi.json", "models.json", "mcp.json"];
-
-// One-time migration from the project's old name: ~/.harness/agent -> ~/.npi/agent.
-const LEGACY_AGENT_DIR = join(homedir(), ".harness", "agent");
-if (!process.env.NPI_AGENT_DIR && !existsSync(AGENT_DIR) && existsSync(LEGACY_AGENT_DIR)) {
-	mkdirSync(dirname(AGENT_DIR), { recursive: true });
-	renameSync(LEGACY_AGENT_DIR, AGENT_DIR);
-	if (existsSync(join(AGENT_DIR, "harness.json")) && !existsSync(join(AGENT_DIR, "npi.json"))) renameSync(join(AGENT_DIR, "harness.json"), join(AGENT_DIR, "npi.json"));
-	console.log(`Moved ${LEGACY_AGENT_DIR} to ${AGENT_DIR}`);
-}
 
 // .env files (see .env.example): repo root, then the agent dir. Real env vars always win.
 for (const file of [join(NPI_ROOT, ".env"), join(AGENT_DIR, ".env")]) {
@@ -107,6 +99,7 @@ async function doctor() {
 	for (const [name, url] of Object.entries(endpoints)) console.log(`${name.padEnd(20)} ${await probe(url)}  ${url}`);
 	for (const alias of ["NPI_LOCAL_LARGE", "NPI_LOCAL_SMALL"]) console.log(`${alias.padEnd(20)} ${process.env[alias] || "unset"}`);
 	console.log(`agent dir            ${existsSync(AGENT_DIR) ? AGENT_DIR : "not initialised (run: npi init)"}`);
+	console.log(`profile              ${process.env.NPI_PROFILE || "none (all routes; or .pi/npi.json \"profile\")"}  available: ${profiles().join(", ")}`);
 }
 
 // Git Bash (MSYS) rewrites "/command" arguments into Windows paths ("C:/Program Files/Git/command");
@@ -115,12 +108,30 @@ const toSlash = (p) => p.replaceAll("\\", "/");
 const msysRoot = process.env.MSYSTEM
 	? toSlash(process.env.EXEPATH ?? "C:/Program Files/Git").replace(/\/bin\/?$/i, "").toLowerCase()
 	: undefined;
-const args = process.argv.slice(2).map((a) => {
+const rawArgs = process.argv.slice(2).map((a) => {
 	if (!msysRoot) return a;
 	const norm = toSlash(a);
 	const rest = norm.slice(msysRoot.length + 1);
 	return norm.toLowerCase().startsWith(`${msysRoot}/`) && rest && !rest.includes("/") ? `/${rest}` : a;
 });
+
+// `--profile <name>` / `--profile=<name>` is npi's, not pi's: hand it to the extensions via NPI_PROFILE.
+const args = [];
+for (let i = 0; i < rawArgs.length; i++) {
+	const a = rawArgs[i];
+	if (a === "--profile" && rawArgs[i + 1]) process.env.NPI_PROFILE = rawArgs[++i];
+	else if (a.startsWith("--profile=")) process.env.NPI_PROFILE = a.slice("--profile=".length);
+	else args.push(a);
+}
+
+function profiles() {
+	const names = new Set();
+	for (const dir of [join(NPI_ROOT, "config", "profiles"), join(AGENT_DIR, "profiles")]) {
+		if (!existsSync(dir)) continue;
+		for (const f of readdirSync(dir)) if (f.endsWith(".json")) names.add(f.slice(0, -5));
+	}
+	return [...names].sort();
+}
 if (args[0] === "init") {
 	init(args.includes("--force"));
 } else if (args[0] === "doctor") {

@@ -28,7 +28,7 @@ export type Decision = { action: "allow" } | { action: "ask" | "deny"; reason: s
 const SHELL = new Set(["bash", "powershell"]);
 const WRITERS = new Set(["edit", "write"]);
 
-function globToRegExp(glob: string): RegExp {
+export function globToRegExp(glob: string): RegExp {
 	// Placeholders first so the regex fragments we insert are not re-processed.
 	const pattern = glob
 		.replace(/\*\*\//g, "\u0001")
@@ -66,8 +66,63 @@ const matchesAny = (text: string, patterns: readonly string[]) =>
 		}
 	});
 
-/** Shell redirection or chaining that could write despite a read-only-looking command. */
-const SHELL_WRITES = /(^|[^<>&|0-9])>>?(?!&)|\btee\b|\|\s*(sh|bash|zsh|pwsh)\b|\$\(|`/;
+/** Shell redirection, substitution or write-capable flags that could write despite a read-only-looking command. */
+const SHELL_WRITES =
+	/(^|[^<>&|0-9])>>?(?!&)|\btee\b|\|\s*(sh|bash|zsh|pwsh)\b|\$\(|`|\bfind\b.*\s-(delete|exec|execdir|ok|okdir|fprint\w*|fls)\b|\bgit\s+branch\s+.*(-[dDmMcC]\b|--(delete|move|copy|force)\b)/;
+
+/**
+ * Split a shell command on `;`, `&&`, `||`, `|`, `&` and newlines outside quotes (best effort, no
+ * heredocs), so every segment of `ls && rm -rf x` is checked on its own.
+ */
+export function splitShell(command: string): string[] {
+	const parts: string[] = [];
+	let current = "";
+	let quote: string | undefined;
+	for (let i = 0; i < command.length; i++) {
+		const c = command[i];
+		if (quote) {
+			if (c === "\\" && quote === '"' && i + 1 < command.length) {
+				current += c + command[++i];
+				continue;
+			}
+			if (c === quote) quote = undefined;
+			current += c;
+			continue;
+		}
+		if (c === "'" || c === '"') {
+			quote = c;
+			current += c;
+			continue;
+		}
+		if (c === "\\" && i + 1 < command.length) {
+			current += c + command[++i];
+			continue;
+		}
+		// `>&2` / `2>&1` / `&>` are redirections, not separators.
+		const redirect = c === "&" && (command[i - 1] === ">" || command[i + 1] === ">");
+		if ((c === ";" || c === "\n" || c === "|" || c === "&") && !redirect) {
+			if (current.trim()) parts.push(current.trim());
+			current = "";
+			if ((c === "&" || c === "|") && command[i + 1] === c) i++;
+			continue;
+		}
+		current += c;
+	}
+	if (current.trim()) parts.push(current.trim());
+	return parts;
+}
+
+/** Words of a shell command that name a protected path (e.g. `cat .env`, `type ~/.ssh/id_rsa`). */
+export function protectedShellPaths(command: string, cwd: string, home: string, globs: readonly string[]): string[] {
+	const words = command.split(/[\s;|&<>()]+/).map((w) =>
+		w
+			.replace(/^['"]|['"]$/g, "")
+			.replace(/^-{1,2}[\w-]+=/, "")
+			.replace(/^\$HOME(?=[/\\])/, "~"),
+	);
+	const candidates = words.filter((w) => w && /[./\\~]/.test(w) && !/^[a-z]+:\/\//i.test(w));
+	return [...new Set(candidates.filter((w) => isProtected(w.replaceAll("\\", "/"), cwd, home, globs)))];
+}
 
 /**
  * Decide whether a tool call may run under a route's policy. Pure: no I/O, so it is unit-tested and
@@ -92,10 +147,21 @@ export function decide(
 		return { action: "allow" };
 	}
 
+	// `experiment run` executes a shell command per seed: judge it exactly like bash (it cannot be sandboxed).
+	if (tool === "experiment" && input.action === "run") {
+		if (env.sandboxed) return { action: "ask", reason: `experiment command runs outside the sandbox: ${String(input.command ?? "").slice(0, 160)}` };
+		return decide(level, { tool: "bash", input: { command: input.command } }, cfg, env);
+	}
+
 	if (SHELL.has(tool)) {
 		const command = String(input.command ?? "");
+		// Only `bash` can be wrapped in the container; a sandboxed route must not escape via powershell.
+		if (env.sandboxed && tool === "powershell") return { action: "deny", reason: "sandboxed mode: use bash (it runs in the container)" };
+		const secrets = protectedShellPaths(command, env.cwd, env.home, cfg.protectedPaths);
+		if (secrets.length) return { action: "ask", reason: `touches protected path(s): ${secrets.join(", ")}` };
 		if (effective === "readonly") {
-			return matchesAny(command, cfg.readonlyCommands) && !SHELL_WRITES.test(command)
+			const segments = splitShell(command);
+			return segments.length > 0 && segments.every((s) => matchesAny(s, cfg.readonlyCommands) && !SHELL_WRITES.test(s))
 				? { action: "allow" }
 				: { action: "deny", reason: "read-only mode: only inspection commands" };
 		}
