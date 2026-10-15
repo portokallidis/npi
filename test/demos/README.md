@@ -3,8 +3,8 @@
 Runnable use cases against **real models**: your local servers from `.env`, plus any cloud keys you set. Each demo prints what happened and records benchmark numbers.
 
 ```bash
-npm run demo:quick   # 1–4: routing, small-model jobs, scout subagent, safety policies (~3 min on local models)
-npm run demo         # all, including 5 brainstorm and 6 science (tens of minutes on local models)
+npm run demo:quick   # the quick ones: 1–4, 7, 8, 10, 11 (minutes on local models)
+npm run demo         # everything, including 5 brainstorm, 6 science and 9 review + fix (tens of minutes)
 ```
 
 | # | Demo | Shows | Needs |
@@ -16,6 +16,11 @@ npm run demo         # all, including 5 brainstorm and 6 science (tens of minute
 | 4 | Safety policies | What readonly / ask / auto (± sandbox) do with typical tool calls | nothing |
 | 5 | Brainstorm | Two or more models propose pathways; disputes are settled; pathways are ranked | 2+ panel models |
 | 6 | Science | Live OpenAlex and PubMed search, dual screening with κ, extraction, GRADE, citation checks | 2 screeners + 1 large model |
+| 7 | Model shootout | The same jobs on each local model (structured extraction, routing, log digest), with accuracy and speed side by side | `local/small`, `local/large` |
+| 8 | Parallel subagents | Two scouts at once on two devices via `delegate`; wall time vs. the sum of both runs | both local models |
+| 9 | Review + fix | Throwaway repo with a buggy commit. The reviewer finds it, the coder fixes it in its own worktree, the tests pass there, and the main checkout is untouched | a local model that can edit code |
+| 10 | Handoff | A messy session condensed into a self-contained prompt (decisions, files, next task) | either local model |
+| 11 | Router eval | The full labelled set (24 prompts) routed end to end with each local model as the classifier | either local model |
 
 **Benchmarks:** every run writes `.harness/benchmarks/<run>.jsonl` and a Markdown report, also copied to `latest.md`. The report has:
 - wall time and quality results per demo;

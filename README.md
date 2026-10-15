@@ -73,6 +73,19 @@ npm run demo:quick   # routing, small-model jobs, a real subagent, safety polici
 npm run demo         # + multi-model brainstorm and a literature review (slow on local models)
 ```
 
+Measured on two home machines: a Mac running Qwen 3.5 9B in LM Studio ("small") and a Linux GPU box running Qwen 3.8 27B in llama.cpp ("large"). Everything ran locally and cost $0.
+
+| Use case | Result |
+|---|---|
+| Routing (24 labelled prompts) | 24/24 with either model; ~3 s per decision on the small one |
+| Pull invoice fields into JSON | 16/16 fields on both models |
+| Shrink a 5k-token log | ~300 tokens, error kept, 3–25 s |
+| Screen papers against criteria | 6/6 on the small model |
+| Review + fix a buggy commit | Bug found, fixed on its own branch, tests pass (4 min) |
+| Two subagents on two machines | 1.7× faster than one after the other |
+| Handoff to a new session | Small model kept 3/4 key facts; large kept 4/4 |
+| Brainstorm, literature review | Complete on one local model in 15–20 min |
+
 Each run prints what happened and writes a benchmark report (time, tokens/s and quality per model and device). [Latest numbers](docs/benchmarks.md) · [What each demo shows](test/demos/README.md)
 
 ## Learn more

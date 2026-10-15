@@ -30,3 +30,12 @@ describe("artifacts", () => {
 		expect(extractSummary("a".repeat(1000), 10).length).toBeLessThanOrEqual(42);
 	});
 });
+
+describe("digest error lines", () => {
+	it("extracts error-looking lines verbatim and dedupes them", async () => {
+		const { errorLines } = await import("../src/core/digest.ts");
+		const text = "starting\nERROR payment-worker: connection refused to redis://cache:6379\nok\nAssertionError: expected 1 to equal 2\nERROR payment-worker: connection refused to redis://cache:6379\nnpm ERR! code ELIFECYCLE\ndone";
+		expect(errorLines(text)).toEqual(["ERROR payment-worker: connection refused to redis://cache:6379", "AssertionError: expected 1 to equal 2", "npm ERR! code ELIFECYCLE"]);
+		expect(errorLines("all good\nnothing to see")).toEqual([]);
+	});
+});

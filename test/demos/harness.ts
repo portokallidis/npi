@@ -52,3 +52,37 @@ export function banner(title: string, lines: string[] = []): void {
 }
 
 export const ms = (start: number) => `${((Date.now() - start) / 1000).toFixed(1)}s`;
+
+/** A real subagent runner (in-process pi sessions) for demos, optionally rooted in another directory. */
+export async function makeRunner(cwd = process.cwd(), overrides: { contextTokens?: number; summaryTokens?: number } = {}) {
+	const { createSessionRunner } = await import("../../src/core/subagent.ts");
+	const d = await demo();
+	return createSessionRunner({
+		cwd,
+		agentDir: d.agentDir,
+		llm: d.llm,
+		fallbackModels: () => [],
+		artifacts: d.artifacts,
+		guard: config.guard,
+		mcpCatalogue: config.mcpServers,
+		contextTokens: overrides.contextTokens ?? 40_000,
+		summaryTokens: overrides.summaryTokens ?? 300,
+		timeoutMs: 30 * 60_000,
+		modelRuntime: Promise.resolve(d.runtime),
+	});
+}
+
+/** Record a finished subagent run in the benchmark (device resolved from the model's base URL). */
+export async function recordAgent(agent: string, result: { model: string; usage: { turns: number; input: number; output: number; costUSD: number; peakContextTokens: number }; error?: string }, totalMs: number) {
+	const { isLocalUrl, parseModelRef } = await import("../../src/core/llm.ts");
+	const d = await demo();
+	const ref = parseModelRef(result.model);
+	const m = d.runtime.getModel(ref.provider, ref.id);
+	bench.agent({ agent, model: `${ref.provider}/${ref.id}`, provider: ref.provider, baseUrl: m?.baseUrl ?? "", local: isLocalUrl(m?.baseUrl), totalMs, ...result.usage, error: result.error });
+}
+
+/** Load the packaged agent definitions. */
+export async function agents() {
+	const { loadAgentDefs } = await import("../../src/core/agents.ts");
+	return loadAgentDefs([new URL("../../agents", import.meta.url).pathname.replace(/^\/(\w:)/, "$1")]);
+}
